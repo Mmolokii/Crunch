@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.rls_auto_enable() FROM public, anon, authenticated;
