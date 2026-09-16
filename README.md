@@ -64,6 +64,7 @@ bun run dev
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only admin client (`client.server.ts`) | Bypasses RLS — never expose to the client, never commit |
 | `SUPABASE_PROJECT_ID` | Local tooling | — |
 | `LECTURER_MIN_COHORT` | Cohort heatmap threshold | Optional, defaults to 8 |
+| `ICS_URL_ENCRYPTION_KEY` | Calendar feed URL encryption (`lib/ics-encryption.ts`) | 32-byte hex key, server-only. Generate with `openssl rand -hex 32` |
 
 Database schema and RLS policies live entirely in `supabase/migrations/` — apply them against your Supabase project with the Supabase CLI before running the app.
 

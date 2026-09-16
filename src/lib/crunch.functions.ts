@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { decryptIcsUrl, encryptIcsUrl } from "@/lib/ics-encryption";
 import type { AppEvent } from "@/lib/workload";
 
 const icsUrlSchema = z.object({
@@ -25,7 +26,7 @@ export const getCalendarSource = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     return data
-      ? { id: data.id, icsUrl: data.ics_url_encrypted, lastSyncedAt: data.last_synced_at }
+      ? { id: data.id, icsUrl: decryptIcsUrl(data.ics_url_encrypted), lastSyncedAt: data.last_synced_at }
       : null;
   });
 
@@ -34,6 +35,7 @@ export const saveCalendarSource = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => icsUrlSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const encryptedUrl = encryptIcsUrl(data.icsUrl);
     const { data: existing, error: readError } = await supabase
       .from("calendar_sources")
       .select("id")
@@ -44,13 +46,13 @@ export const saveCalendarSource = createServerFn({ method: "POST" })
     if (existing) {
       const { error } = await supabase
         .from("calendar_sources")
-        .update({ ics_url_encrypted: data.icsUrl })
+        .update({ ics_url_encrypted: encryptedUrl })
         .eq("id", existing.id);
       if (error) throw new Error(error.message);
     } else {
       const { error } = await supabase
         .from("calendar_sources")
-        .insert({ user_id: userId, ics_url_encrypted: data.icsUrl });
+        .insert({ user_id: userId, ics_url_encrypted: encryptedUrl });
       if (error) throw new Error(error.message);
     }
 
