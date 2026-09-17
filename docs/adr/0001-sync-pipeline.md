@@ -44,18 +44,21 @@ Brightspace ICS entries carry no `problem_set`/`essay`/`exam`/`quiz`/`reading`/`
 ## Options considered
 
 ### Option A: Server functions in this app (chosen)
-| Dimension | Assessment |
-|---|---|
-| Complexity | Low — reuses existing patterns, no new deploy target |
-| Cost | None beyond existing hosting |
-| Scalability | Fine to low hundreds of students; revisit past that |
-| Team familiarity | High — same stack as everything else in the repo |
+
+| Dimension        | Assessment                                           |
+| ---------------- | ---------------------------------------------------- |
+| Complexity       | Low — reuses existing patterns, no new deploy target |
+| Cost             | None beyond existing hosting                         |
+| Scalability      | Fine to low hundreds of students; revisit past that  |
+| Team familiarity | High — same stack as everything else in the repo     |
 
 ### Option B: Supabase Edge Function
+
 **Pros:** Runs close to the database; separates sync concerns from the web app's deploy.
 **Cons:** Second runtime (Deno) and deploy target for a two-person team to maintain; secrets now live in two places instead of one; no scaling need at pilot size justifies the split.
 
 ### Option C: Revive the external Next.js relay assumption
+
 **Cons:** This is what we're explicitly moving away from — depends on a service that was never confirmed to exist, and puts the project's biggest blocker outside the team's own control. Rejected.
 
 ## Consequences
@@ -90,3 +93,11 @@ A real export confirmed some assumptions above and corrected others. Recorded he
 **Confirmed — no DB-level upsert constraint.** Neither `events (course_id, external_uid)` nor `courses (user_id, code)` has a unique constraint in the migration history. `runCalendarSync` does a manual check-then-insert/update per row, matching the existing pattern in `lecturer_upsert_due_date` (which does the same rather than relying on `ON CONFLICT`). `events.source` for synced rows is `'ics_sync'`, the value the existing `events_source_check` constraint already expects (alongside `'manual'`).
 
 **Open, not blocking:** the base schema for `users`/`calendar_sources`/`courses`/`events`/`week_scores` predates this repo's migration history — there's no `CREATE TABLE` for any of them in `supabase/migrations/`. Worth a follow-up issue to pull a baseline schema dump into version control so the repo is self-contained, but doesn't block sync from working today.
+
+## Addendum: Trigger 3 implementation (2026-09-17)
+
+**Corrected — no `LOVABLE_CRON_SECRET` to repurpose, and no `vercel.json`.** Neither actually exists in this repo — a search of every file turned up nothing. Both assumptions in the original decision above came from the old `.lovable/plan/` build plan, which was deleted as part of the Lovable break and never matched what was actually committed. `CRON_SECRET` is a new env var, not a rename, and the deploy target (Vercel or otherwise) is still CRU-19's decision to make, not this ADR's.
+
+**Corrected — not a TanStack Start file-based route.** The plan assumed "a new authenticated route" without specifying how. This repo's pinned `@tanstack/react-start` version (1.168.32) has no verified public API for a request/response-only route with no page component — chasing the actual `RouteOptions`/`server` type surface through `node_modules` turned up generic plumbing (`TServerMiddlewares`, `THandlers`) but no documented way to invoke it with confidence it'd compile. Rather than guess at unverified internals, Trigger 3 is handled directly in `src/server.ts`'s existing custom `fetch` handler — every request already passes through it before reaching TanStack Start's SSR handler, so a path check for `/api/cron/sync` ahead of that call is a small, certain addition instead of a speculative one. The actual sync logic lives in `src/lib/cron-sync.ts` (`handleNightlySync`), kept separate so `server.ts` stays a thin dispatcher.
+
+**Still open:** this ships the endpoint, not the schedule. `POST /api/cron/sync` with `Authorization: Bearer $CRON_SECRET` runs a full sync pass right now and can be triggered manually or from CI — but nothing calls it nightly yet. That's blocked on CRU-19 (deploy target), since the scheduling mechanism differs by platform (Vercel Cron config, a GitHub Actions scheduled workflow, Supabase `pg_cron` + `pg_net`, …).

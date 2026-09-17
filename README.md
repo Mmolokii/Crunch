@@ -45,11 +45,12 @@ All privileged reads and writes go through server functions in `crunch.functions
 
 ## Getting started
 
-Requires [Bun](https://bun.sh) and a Supabase project.
+Requires [Bun](https://bun.sh), Node.js 22+ (see `.nvmrc` — `@supabase/realtime-js` needs a native `WebSocket` global that older Node doesn't have; run `nvm use` in the repo root, or `nvm alias default 22` so every new shell picks it up automatically), and a Supabase project.
 
 ```sh
 git clone https://github.com/Mmolokii/Crunch.git
 cd Crunch
+nvm use             # picks up Node 22 from .nvmrc
 bun install
 cp .env.example .env   # fill in your Supabase project values
 bun run dev
@@ -57,14 +58,15 @@ bun run dev
 
 ### Environment variables
 
-| Variable | Where it's used | Notes |
-|---|---|---|
-| `SUPABASE_URL` / `VITE_SUPABASE_URL` | Server and client Supabase clients | Your Supabase project URL |
-| `SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY` | Server and client Supabase clients | Anon/publishable key — safe to expose client-side |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only admin client (`client.server.ts`) | Bypasses RLS — never expose to the client, never commit |
-| `SUPABASE_PROJECT_ID` | Local tooling | — |
-| `LECTURER_MIN_COHORT` | Cohort heatmap threshold | Optional, defaults to 8 |
-| `ICS_URL_ENCRYPTION_KEY` | Calendar feed URL encryption (`lib/ics-encryption.ts`) | 32-byte hex key, server-only. Generate with `openssl rand -hex 32` |
+| Variable                                                     | Where it's used                                        | Notes                                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------ |
+| `SUPABASE_URL` / `VITE_SUPABASE_URL`                         | Server and client Supabase clients                     | Your Supabase project URL                                          |
+| `SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY` | Server and client Supabase clients                     | Anon/publishable key — safe to expose client-side                  |
+| `SUPABASE_SERVICE_ROLE_KEY`                                  | Server-only admin client (`client.server.ts`)          | Bypasses RLS — never expose to the client, never commit            |
+| `SUPABASE_PROJECT_ID`                                        | Local tooling                                          | —                                                                  |
+| `LECTURER_MIN_COHORT`                                        | Cohort heatmap threshold                               | Optional, defaults to 8                                            |
+| `ICS_URL_ENCRYPTION_KEY`                                     | Calendar feed URL encryption (`lib/ics-encryption.ts`) | 32-byte hex key, server-only. Generate with `openssl rand -hex 32` |
+| `CRON_SECRET`                                                | Nightly sync trigger (`POST /api/cron/sync`)           | Server-only. Generate with `openssl rand -hex 32`                  |
 
 Database schema and RLS policies live entirely in `supabase/migrations/` — apply them against your Supabase project with the Supabase CLI before running the app.
 
@@ -79,7 +81,7 @@ bun run format      # prettier --write
 
 ## Project status
 
-This is an active pilot MVP. Auth, the database schema, and the core student and lecturer app screens are built against live Supabase data. The external calendar sync integration — the piece that actually pulls events from Brightspace into the database — is the current gap most other functionality depends on; see open issues for details.
+This is an active pilot MVP. Auth, the database schema, the core student and lecturer app screens, and the Brightspace calendar sync engine are all built against live Supabase data — students can connect a real calendar feed and get real scored weeks end to end. Remaining before pilot: the nightly sync trigger needs an actual schedule wired to it (depends on picking a deploy target), and the sync pipeline hasn't yet been tested against a second real account or exam-period data. See open issues for details.
 
 ## Contributing
 
