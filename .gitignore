@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 .output
+.vercel
 .vinxi
 .tanstack/**
 .nitro
@@ -41,3 +42,6 @@ src/routeTree.gen.ts
 
 # Lovable editor project metadata — not used in this repo
 .lovable/
+
+# Supabase CLI local state
+supabase/.temp/
