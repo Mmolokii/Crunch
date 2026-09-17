@@ -17,7 +17,10 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 import { runCalendarSync, type SyncResult } from "./calendar-sync";
 
-type RowResult = { calendarSourceId: string; result: SyncResult | { status: "error"; message: string } };
+type RowResult = {
+  calendarSourceId: string;
+  result: SyncResult | { status: "error"; message: string };
+};
 
 function isAuthorized(request: Request): boolean {
   const secret = process.env["CRON_SECRET"];
@@ -60,10 +63,12 @@ export async function handleNightlySync(request: Request): Promise<Response> {
   const summary = {
     total: results.length,
     ok: results.filter((r) => r.result.status === "ok").length,
-    failed: results.filter((r) => r.result.status !== "ok").map((r) => ({
-      calendarSourceId: r.calendarSourceId,
-      status: r.result.status,
-    })),
+    failed: results
+      .filter((r) => r.result.status !== "ok")
+      .map((r) => ({
+        calendarSourceId: r.calendarSourceId,
+        status: r.result.status,
+      })),
   };
 
   return new Response(JSON.stringify({ summary, results }), {
