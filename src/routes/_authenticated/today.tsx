@@ -39,9 +39,7 @@ function Today() {
     .slice(0, 6);
 
   const highStakesSoon = upcoming.some(
-    (e) =>
-      e.isHighStakes &&
-      new Date(e.dueAt).getTime() - now.getTime() <= 7 * 24 * 60 * 60 * 1000,
+    (e) => e.isHighStakes && new Date(e.dueAt).getTime() - now.getTime() <= 7 * 24 * 60 * 60 * 1000,
   );
 
   const todayLabel = now.toLocaleDateString("en-ZA", {
@@ -54,9 +52,7 @@ function Today() {
     <AppShell>
       <Container className="flex max-w-xl flex-col gap-4 py-6">
         <div className="animate-fade">
-          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            {todayLabel}
-          </p>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{todayLabel}</p>
           <h1 className="mt-1 text-2xl font-semibold">Next up</h1>
         </div>
 
@@ -74,8 +70,7 @@ function Today() {
           <div className="surface-card animate-rise rounded-2xl p-6">
             <h2 className="font-display text-lg font-semibold">Nothing due yet</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Once your Brightspace feed is connected and synced, your next few due dates land
-              here.
+              Once your Brightspace feed is connected and synced, your next few due dates land here.
             </p>
             <Button asChild className="mt-5 rounded-full">
               <Link to="/onboarding">Connect your calendar</Link>

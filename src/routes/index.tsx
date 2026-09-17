@@ -249,7 +249,6 @@ function Landing() {
             <ArrowRight className="h-4 w-4" />
           </Link>
         </Button>
-
       </section>
     </PageShell>
   );

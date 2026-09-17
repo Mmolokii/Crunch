@@ -54,8 +54,8 @@ function TermsPage() {
 
       <Section title="Your account">
         <p>
-          Keep your credentials to yourself. You are responsible for activity under your account.
-          Do not connect a calendar feed that is not yours.
+          Keep your credentials to yourself. You are responsible for activity under your account. Do
+          not connect a calendar feed that is not yours.
         </p>
       </Section>
 
@@ -76,8 +76,8 @@ function TermsPage() {
 
       <Section title="Ending it">
         <p>
-          You can stop using Crunch and request deletion at any time. We may close accounts that
-          are no longer associated with the university.
+          You can stop using Crunch and request deletion at any time. We may close accounts that are
+          no longer associated with the university.
         </p>
       </Section>
     </LegalPage>

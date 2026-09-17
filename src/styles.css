@@ -264,8 +264,16 @@
 
 @utility grain-bg {
   background-image:
-    radial-gradient(70rem 40rem at 15% -10%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 60%),
-    radial-gradient(50rem 34rem at 92% 4%, color-mix(in oklab, var(--primary) 10%, transparent), transparent 62%);
+    radial-gradient(
+      70rem 40rem at 15% -10%,
+      color-mix(in oklab, var(--primary) 16%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      50rem 34rem at 92% 4%,
+      color-mix(in oklab, var(--primary) 10%, transparent),
+      transparent 62%
+    );
 }
 
 @media (prefers-reduced-motion: reduce) {

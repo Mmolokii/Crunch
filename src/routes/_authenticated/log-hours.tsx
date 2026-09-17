@@ -86,8 +86,8 @@ function LogHours() {
           <div className="surface-card animate-rise rounded-2xl p-6">
             <h2 className="font-display text-lg font-semibold">Nothing to log yet</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Once a due date has passed, it shows up here so you can record the hours it
-              actually took.
+              Once a due date has passed, it shows up here so you can record the hours it actually
+              took.
             </p>
             <Button asChild className="mt-5 rounded-full">
               <Link to="/dashboard">Back to your weeks</Link>

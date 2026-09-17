@@ -156,7 +156,13 @@ export function courseSplitOf(events: AppEvent[]): CourseSplit[] {
     const hours = e.actualHoursLogged ?? e.estimatedHours ?? 0;
     const entry = byCourse.get(e.courseCode);
     if (entry) entry.hours = round1(entry.hours + hours);
-    else byCourse.set(e.courseCode, { code: e.courseCode, name: e.courseName, hours: round1(hours), share: 0 });
+    else
+      byCourse.set(e.courseCode, {
+        code: e.courseCode,
+        name: e.courseName,
+        hours: round1(hours),
+        share: 0,
+      });
   }
   const list = [...byCourse.values()].sort((a, b) => b.hours - a.hours);
   const max = Math.max(1, ...list.map((c) => c.hours));
@@ -212,11 +218,15 @@ export function insightsFrom(weeks: AppWeek[], events: AppEvent[]): string[] {
           `Across ${logged.length} logged items you spent about ${Math.abs(diff)}% ${diff > 0 ? "more" : "less"} time than estimated.`,
         );
       } else {
-        out.push(`Across ${logged.length} logged items your estimates are tracking within 10% of reality.`);
+        out.push(
+          `Across ${logged.length} logged items your estimates are tracking within 10% of reality.`,
+        );
       }
     }
   } else {
-    out.push("Log actual hours on a few items and Crunch can tell you where its estimates run high or low.");
+    out.push(
+      "Log actual hours on a few items and Crunch can tell you where its estimates run high or low.",
+    );
   }
 
   return out;

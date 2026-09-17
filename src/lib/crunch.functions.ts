@@ -2,8 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { runCalendarSync } from "@/lib/calendar-sync";
 import { decryptIcsUrl, encryptIcsUrl } from "@/lib/ics-encryption";
 import type { AppEvent } from "@/lib/workload";
+
+export type { SyncResult } from "@/lib/calendar-sync";
 
 const icsUrlSchema = z.object({
   icsUrl: z
@@ -26,10 +29,20 @@ export const getCalendarSource = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     return data
-      ? { id: data.id, icsUrl: decryptIcsUrl(data.ics_url_encrypted), lastSyncedAt: data.last_synced_at }
+      ? {
+          id: data.id,
+          icsUrl: decryptIcsUrl(data.ics_url_encrypted),
+          lastSyncedAt: data.last_synced_at,
+        }
       : null;
   });
 
+/**
+ * Saves the encrypted feed URL, then calls runCalendarSync synchronously
+ * before returning — Trigger 1 in docs/adr/0001-sync-pipeline.md. The caller
+ * (onboarding, settings) gets a real SyncResult to render from instead of
+ * inferring state from a separate courses.length === 0 check afterward.
+ */
 export const saveCalendarSource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => icsUrlSchema.parse(input))
@@ -43,20 +56,42 @@ export const saveCalendarSource = createServerFn({ method: "POST" })
       .maybeSingle();
     if (readError) throw new Error(readError.message);
 
+    let calendarSourceId: string;
     if (existing) {
       const { error } = await supabase
         .from("calendar_sources")
         .update({ ics_url_encrypted: encryptedUrl })
         .eq("id", existing.id);
       if (error) throw new Error(error.message);
+      calendarSourceId = existing.id;
     } else {
-      const { error } = await supabase
+      const { data: created, error } = await supabase
         .from("calendar_sources")
-        .insert({ user_id: userId, ics_url_encrypted: encryptedUrl });
+        .insert({ user_id: userId, ics_url_encrypted: encryptedUrl })
+        .select("id")
+        .single();
       if (error) throw new Error(error.message);
+      calendarSourceId = created.id;
     }
 
-    return { ok: true };
+    return runCalendarSync(calendarSourceId);
+  });
+
+/**
+ * Manual "Sync now" — Trigger 2 in the ADR. Re-runs the same sync against
+ * whatever feed URL is already saved, without changing it.
+ */
+export const syncCalendarNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: existing, error } = await context.supabase
+      .from("calendar_sources")
+      .select("id")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!existing) return { status: "no_source" as const };
+    return runCalendarSync(existing.id);
   });
 
 export const getMyEvents = createServerFn({ method: "GET" })

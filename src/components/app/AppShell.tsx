@@ -1,7 +1,15 @@
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, ChartNoAxesColumn, LayoutGrid, LogOut, Settings, Sun, Timer } from "lucide-react";
+import {
+  CalendarDays,
+  ChartNoAxesColumn,
+  LayoutGrid,
+  LogOut,
+  Settings,
+  Sun,
+  Timer,
+} from "lucide-react";
 
 import { Logo } from "@/components/site/Logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +38,6 @@ function SignOutButton() {
     </button>
   );
 }
-
 
 const studentNav = [
   { to: "/dashboard", label: "Weeks", icon: LayoutGrid },
@@ -74,7 +81,6 @@ export function AppShell({
               ))}
             </nav>
             <SignOutButton />
-
           </div>
         </div>
       </header>

@@ -26,14 +26,15 @@ const FETCH_TIMEOUT_MS = 15_000;
  * logging actual hours after the fact is what sharpens them per student
  * (see workload.ts / the "Log hours" flow).
  */
-const TYPE_DEFAULTS: Record<CanonicalEventType, { estimatedHours: number; isHighStakes: boolean }> = {
-  problem_set: { estimatedHours: 3, isHighStakes: false },
-  essay: { estimatedHours: 5, isHighStakes: true },
-  exam: { estimatedHours: 6, isHighStakes: true },
-  quiz: { estimatedHours: 1, isHighStakes: false },
-  reading: { estimatedHours: 2, isHighStakes: false },
-  other: { estimatedHours: 1, isHighStakes: false },
-};
+const TYPE_DEFAULTS: Record<CanonicalEventType, { estimatedHours: number; isHighStakes: boolean }> =
+  {
+    problem_set: { estimatedHours: 3, isHighStakes: false },
+    essay: { estimatedHours: 5, isHighStakes: true },
+    exam: { estimatedHours: 6, isHighStakes: true },
+    quiz: { estimatedHours: 1, isHighStakes: false },
+    reading: { estimatedHours: 2, isHighStakes: false },
+    other: { estimatedHours: 1, isHighStakes: false },
+  };
 
 async function fetchIcs(url: string): Promise<{ ok: true; body: string } | { ok: false }> {
   const controller = new AbortController();

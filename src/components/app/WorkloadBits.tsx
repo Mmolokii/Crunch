@@ -22,18 +22,17 @@ export function IntensityBar({ level, hours }: { level: Level; hours: number }) 
   return (
     <div className="h-2 w-full overflow-hidden rounded-full bg-surface-sunken">
       <div
-        className={cn("h-full rounded-full transition-[width] duration-700 ease-calm", levelFill[level])}
+        className={cn(
+          "h-full rounded-full transition-[width] duration-700 ease-calm",
+          levelFill[level],
+        )}
         style={{ width: `${Math.max(6, pct)}%` }}
       />
     </div>
   );
 }
 
-export function ConflictCallout({
-  conflicts,
-}: {
-  conflicts: { date: string; note: string }[];
-}) {
+export function ConflictCallout({ conflicts }: { conflicts: { date: string; note: string }[] }) {
   if (conflicts.length === 0) return null;
   return (
     <div className="animate-rise rounded-2xl border border-glass-border bg-accent/60 p-5 backdrop-blur-sm">
