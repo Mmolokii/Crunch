@@ -22,4 +22,5 @@ Crunch is a TanStack Start app on Supabase. A few conventions matter more here t
 ## Git
 
 - Feature branches off `main`, merged via PR. Keep commits scoped to one area.
+- Branch names: `<type>/<issue-key>-<slug>`, all lowercase, hyphens between words — e.g. `feat/cru-10-ics-sync-engine`, `fix/cru-14-lecturer-heatmap-threshold`, `docs/cru-7-license-decision`. `<type>` is one of `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, matching the commit-message prefix for the work. `<issue-key>` is the Linear issue this branch closes (`cru-10`, not `CRU-10`); when work spans more than one issue, use the primary one. This isn't Linear's own auto-generated branch name (which is `<username>/<issue-key>-<slug>`) — we're prioritizing the change-type signal over auto-link, so link the PR to its issue manually in the Linear UI or by putting `Fixes CRU-10` in the PR description instead.
 - `bun run lint` and `bun run build` should pass before opening a PR.

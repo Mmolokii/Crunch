@@ -8,7 +8,7 @@ import { Logo } from "@/components/site/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getCalendarSource, getMyCourses, getMyEvents, saveCalendarSource } from "@/lib/crunch.functions";
+import { getCalendarSource, getMyCourses, saveCalendarSource } from "@/lib/crunch.functions";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   head: () => ({
@@ -48,7 +48,6 @@ function Onboarding() {
 
   const save = useServerFn(saveCalendarSource);
   const loadCourses = useServerFn(getMyCourses);
-  const loadEvents = useServerFn(getMyEvents);
 
   async function submit() {
     if (!VALID.test(url.trim())) {
@@ -56,12 +55,29 @@ function Onboarding() {
       return;
     }
     setState("syncing");
+    setErrorNote(null);
     try {
-      await save({ data: { icsUrl: url.trim() } });
-      const [syncedCourses, syncedEvents] = await Promise.all([loadCourses(), loadEvents()]);
-      setCourses(syncedCourses);
-      setEventCount(syncedEvents.length);
-      setState(syncedCourses.length === 0 ? "empty" : "done");
+      // saveCalendarSource calls runCalendarSync synchronously before
+      // returning — this is a real result, not an inference from a
+      // separate courses.length === 0 read. See docs/adr/0001-sync-pipeline.md.
+      const result = await save({ data: { icsUrl: url.trim() } });
+
+      if (result.status === "invalid_url") {
+        setState("invalid");
+        return;
+      }
+      if (result.status === "unreachable") {
+        setState("unreachable");
+        return;
+      }
+      if (result.status === "empty") {
+        setState("empty");
+        return;
+      }
+
+      setEventCount(result.eventsUpserted);
+      setCourses(await loadCourses());
+      setState("done");
     } catch (error) {
       setErrorNote(error instanceof Error ? error.message : "Something went wrong");
       setState("unreachable");
@@ -72,7 +88,9 @@ function Onboarding() {
     <div className="grain-bg flex min-h-screen flex-col bg-background">
       <header className="mx-auto flex w-full max-w-xl items-center justify-between px-5 py-6">
         <Logo />
-        <span className="text-xs text-muted-foreground">Step {state === "welcome" ? 1 : 2} of 2</span>
+        <span className="text-xs text-muted-foreground">
+          Step {state === "welcome" ? 1 : 2} of 2
+        </span>
       </header>
 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-5 pb-16">
@@ -139,8 +157,11 @@ function Onboarding() {
             {state === "unreachable" && (
               <Message
                 tone="warn"
-                title="We couldn't save that feed"
-                body={errorNote ?? "Something went wrong saving your calendar link. Please try again."}
+                title="We couldn't reach that feed"
+                body={
+                  errorNote ??
+                  "Your link was saved, but we couldn't fetch that feed just now. Double check the URL, or wait for tonight's automatic sync to try again."
+                }
               />
             )}
 
@@ -166,9 +187,9 @@ function Onboarding() {
           <section className="surface-card animate-rise rounded-3xl p-7">
             <h1 className="text-2xl font-semibold">Saved — no due dates yet</h1>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Your calendar link is stored, but no due dates have come through yet. That usually means your lecturers
-              haven't added dates to Brightspace yet. Crunch will keep checking nightly and score
-              your weeks as soon as anything appears.
+              Your calendar link is stored, but no due dates have come through yet. That usually
+              means your lecturers haven't added dates to Brightspace yet. Crunch will keep checking
+              nightly and score your weeks as soon as anything appears.
             </p>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row">
               <Button asChild className="rounded-full">
@@ -188,7 +209,8 @@ function Onboarding() {
             </span>
             <h1 className="mt-5 text-2xl font-semibold">Found {courses.length} courses</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {eventCount} upcoming item{eventCount === 1 ? "" : "s"} synced. Check these look right.
+              {eventCount} upcoming item{eventCount === 1 ? "" : "s"} synced. Check these look
+              right.
             </p>
             <div className="mt-5 flex flex-col gap-2">
               {courses.map((c) => (

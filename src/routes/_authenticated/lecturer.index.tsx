@@ -29,7 +29,10 @@ export const Route = createFileRoute("/_authenticated/lecturer/")({
     const first = courses[0];
     const cohort = first
       ? await getCohortWeeks({ data: { code: first.code } })
-      : { minCohort: 8, weeks: [] as { weekStart: string; avgHours: number; studentCount: number }[] };
+      : {
+          minCohort: 8,
+          weeks: [] as { weekStart: string; avgHours: number; studentCount: number }[],
+        };
     return { courses, course: first ?? null, cohort };
   },
   component: LecturerCohort,
@@ -111,7 +114,10 @@ function LecturerCohort() {
         {course ? (
           <p className="text-xs leading-relaxed text-muted-foreground">
             Want to shift a deadline out of a heavy week?{" "}
-            <Link to="/lecturer/due-dates" className="text-primary underline-offset-4 hover:underline">
+            <Link
+              to="/lecturer/due-dates"
+              className="text-primary underline-offset-4 hover:underline"
+            >
               Manage your due dates
             </Link>
             .

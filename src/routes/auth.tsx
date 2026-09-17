@@ -122,7 +122,13 @@ function AuthPage() {
 
           <TabsContent value="signin">
             <form className="mt-4 space-y-4" onSubmit={handleSignIn}>
-              <Field id="si-email" label="University email" value={email} onChange={setEmail} type="email" />
+              <Field
+                id="si-email"
+                label="University email"
+                value={email}
+                onChange={setEmail}
+                type="email"
+              />
               <Field
                 id="si-password"
                 label="Password"
@@ -138,7 +144,13 @@ function AuthPage() {
 
           <TabsContent value="signup">
             <form className="mt-4 space-y-4" onSubmit={handleSignUp}>
-              <Field id="su-email" label="University email" value={email} onChange={setEmail} type="email" />
+              <Field
+                id="su-email"
+                label="University email"
+                value={email}
+                onChange={setEmail}
+                type="email"
+              />
               <Field
                 id="su-password"
                 label="Password"
@@ -170,8 +182,8 @@ function AuthPage() {
 
         {notice && <p className="mt-4 text-sm text-destructive">{notice}</p>}
         <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
-          Your role is verified on the server after sign-in — Crunch never trusts a role sent from the
-          browser.
+          Your role is verified on the server after sign-in — Crunch never trusts a role sent from
+          the browser.
         </p>
       </div>
     </div>

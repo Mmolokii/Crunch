@@ -59,7 +59,12 @@ function Dashboard() {
         title="The weeks ahead"
         subtitle="Total estimated effort per week, drawn from your synced calendar feed and adjusted by the hours you log."
         action={
-          <Button variant="outline" className="rounded-full" onClick={refresh} disabled={refreshing}>
+          <Button
+            variant="outline"
+            className="rounded-full"
+            onClick={refresh}
+            disabled={refreshing}
+          >
             <RefreshCw className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
             Refresh
           </Button>
@@ -78,9 +83,7 @@ function Dashboard() {
                 : "Connect your Brightspace calendar feed and Crunch will start scoring your weeks."}
             </p>
             <Button asChild className="mt-6 rounded-full">
-              <Link to="/onboarding">
-                {source ? "Change calendar link" : "Connect calendar"}
-              </Link>
+              <Link to="/onboarding">{source ? "Change calendar link" : "Connect calendar"}</Link>
             </Button>
           </div>
         ) : (

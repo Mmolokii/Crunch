@@ -64,7 +64,9 @@ export function SiteHeader() {
               ))}
             </nav>
             <Button asChild className="mt-3 w-full rounded-full">
-              <Link to="/auth" onClick={() => setOpen(false)}>Get started</Link>
+              <Link to="/auth" onClick={() => setOpen(false)}>
+                Get started
+              </Link>
             </Button>
           </div>
         )}

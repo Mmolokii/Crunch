@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { LogOut } from "lucide-react";
+import { LogOut, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -16,7 +16,9 @@ import {
   getNotificationPrefs,
   saveCalendarSource,
   saveNotificationPrefs,
+  syncCalendarNow,
   type NotificationPrefs,
+  type SyncResult,
 } from "@/lib/crunch.functions";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -66,7 +68,6 @@ const notifications: { key: keyof NotificationPrefs; label: string; hint: string
   },
 ];
 
-
 function formatSynced(iso: string | null | undefined) {
   if (!iso) return "Not synced yet.";
   return `Last synced ${new Date(iso).toLocaleString("en-ZA", {
@@ -79,15 +80,40 @@ function formatSynced(iso: string | null | undefined) {
   })}.`;
 }
 
+/** Turns a real SyncResult into the toast copy for it — shared by "Save feed" and "Sync now". */
+function toastSyncResult(result: SyncResult | { status: "no_source" }) {
+  switch (result.status) {
+    case "ok":
+      toast.success(
+        `Synced — ${result.coursesTouched} course${result.coursesTouched === 1 ? "" : "s"}, ${result.eventsUpserted} item${result.eventsUpserted === 1 ? "" : "s"}.`,
+      );
+      return;
+    case "invalid_url":
+      toast.error("That doesn't look like a valid Brightspace feed.");
+      return;
+    case "unreachable":
+      toast.error("Couldn't reach that feed just now. We'll retry it tonight.");
+      return;
+    case "empty":
+      toast.warning("Saved, but no due dates have come through yet.");
+      return;
+    case "no_source":
+      toast.error("Add a calendar feed first.");
+      return;
+  }
+}
+
 function SettingsPage() {
   const { source, profile, prefs: loadedPrefs } = Route.useLoaderData();
   const router = useRouter();
   const save = useServerFn(saveCalendarSource);
+  const syncNow = useServerFn(syncCalendarNow);
   const savePrefs = useServerFn(saveNotificationPrefs);
   const [url, setUrl] = useState(source?.icsUrl ?? "");
   const [prefs, setPrefs] = useState<NotificationPrefs>(loadedPrefs);
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   async function togglePref(key: keyof NotificationPrefs, value: boolean) {
     const previous = prefs;
@@ -104,12 +130,13 @@ function SettingsPage() {
     }
   }
 
-
   async function onSave() {
     setSaving(true);
     try {
-      await save({ data: { icsUrl: url.trim() } });
-      toast.success("Calendar feed saved.");
+      // saveCalendarSource syncs synchronously before returning — a real
+      // result, not an inferred one. See docs/adr/0001-sync-pipeline.md.
+      const result = await save({ data: { icsUrl: url.trim() } });
+      toastSyncResult(result);
       await router.invalidate();
     } catch (error) {
       toast.error(
@@ -119,6 +146,19 @@ function SettingsPage() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onSyncNow() {
+    setSyncing(true);
+    try {
+      const result = await syncNow();
+      toastSyncResult(result);
+      await router.invalidate();
+    } catch {
+      toast.error("Sync failed. Please try again.");
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -138,9 +178,7 @@ function SettingsPage() {
       <Container className="flex max-w-2xl flex-col gap-5">
         <section className="surface-card animate-rise rounded-2xl p-6">
           <h2 className="font-display text-lg font-semibold">Calendar feed</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {formatSynced(source?.lastSyncedAt)}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{formatSynced(source?.lastSyncedAt)}</p>
           <div className="mt-4 flex flex-col gap-2">
             <Label htmlFor="feed">Brightspace subscription URL</Label>
             <Input
@@ -154,6 +192,17 @@ function SettingsPage() {
             <Button className="rounded-full" onClick={onSave} disabled={saving || !url.trim()}>
               {saving ? "Saving…" : "Save feed"}
             </Button>
+            {source ? (
+              <Button
+                variant="outline"
+                className="rounded-full"
+                onClick={onSyncNow}
+                disabled={syncing || saving}
+              >
+                <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? "Syncing…" : "Sync now"}
+              </Button>
+            ) : null}
           </div>
         </section>
 
@@ -177,7 +226,6 @@ function SettingsPage() {
               </div>
             ))}
           </div>
-
         </section>
 
         <section className="surface-card animate-rise rounded-2xl p-6">

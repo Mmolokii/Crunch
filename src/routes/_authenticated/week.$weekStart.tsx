@@ -74,9 +74,7 @@ function WeekDetail() {
 
         <section className="surface-card animate-rise rounded-2xl px-5 py-1">
           {week.events.length === 0 ? (
-            <p className="py-6 text-sm text-muted-foreground">
-              Nothing is due in this week.
-            </p>
+            <p className="py-6 text-sm text-muted-foreground">Nothing is due in this week.</p>
           ) : (
             <div className="divide-y divide-border/70">
               {week.events.map((event) => (
