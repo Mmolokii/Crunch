@@ -5,9 +5,10 @@
  * is caught individually and the loop continues.
  *
  * This is the HTTP endpoint the schedule hits — it does not itself set up
- * the schedule. What actually calls this on a nightly cadence (Vercel Cron,
- * a GitHub Actions workflow, Supabase pg_cron, …) depends on the deploy
- * target, which CRU-19 hasn't decided yet. Until then, trigger it manually:
+ * the schedule. The nightly cadence is Vercel Cron (see vercel.json), which
+ * GETs this path and — since CRON_SECRET is set as a Vercel env var —
+ * automatically attaches the same `Authorization: Bearer $CRON_SECRET`
+ * header isAuthorized() checks for. Can also be triggered manually:
  *
  *   curl -X POST https://<host>/api/cron/sync -H "Authorization: Bearer $CRON_SECRET"
  *
