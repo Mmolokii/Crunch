@@ -12,4 +12,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Deploy target is Vercel (see docs/adr/0001-sync-pipeline.md) — override the shared
+  // config's cloudflare-module default so builds target Vercel's Node runtime instead.
+  nitro: { preset: "vercel" },
 });
