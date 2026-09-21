@@ -61,13 +61,14 @@ export function AppShell({
   role?: "student" | "lecturer";
 }) {
   const nav = role === "lecturer" ? lecturerNav : studentNav;
+  const homeTo = role === "lecturer" ? "/lecturer" : "/dashboard";
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-50">
         <div className="glass-panel border-x-0 border-t-0">
           <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5">
-            <Logo />
+            <Logo to={homeTo} />
             <nav className="hidden items-center gap-1 md:flex">
               {nav.map((item) => (
                 <Link
