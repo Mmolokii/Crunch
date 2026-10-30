@@ -17,7 +17,9 @@ export type SyncResult =
   | { status: "ok"; coursesTouched: number; eventsUpserted: number }
   | { status: "invalid_url" }
   | { status: "unreachable" }
-  | { status: "empty" };
+  | { status: "empty" }
+  /** Only from the user-triggered server functions, never from the sync itself. */
+  | { status: "cooldown"; retryInSeconds: number };
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_REDIRECTS = 3;

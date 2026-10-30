@@ -1,11 +1,14 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Database } from "@/integrations/supabase/types";
 import { runCalendarSync, type SyncResult } from "@/lib/calendar-sync";
 import { decryptIcsUrl, encryptIcsUrl } from "@/lib/ics-encryption";
 import { isAllowedFeedUrl } from "@/lib/ics-url";
+import { cooldownSecondsLeft } from "@/lib/sync-cooldown";
 import type { AppEvent } from "@/lib/workload";
 
 export type { SyncResult } from "@/lib/calendar-sync";
@@ -17,6 +20,16 @@ const icsUrlSchema = z.object({
 });
 
 type CourseRow = { code: string | null; name: string };
+
+async function readOwnSource(context: { supabase: SupabaseClient<Database>; userId: string }) {
+  const { data, error } = await context.supabase
+    .from("calendar_sources")
+    .select("id, last_synced_at")
+    .eq("user_id", context.userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
 
 export const getCalendarSource = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -48,6 +61,10 @@ export const saveCalendarSource = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<SyncResult> => {
     if (!isAllowedFeedUrl(data.icsUrl)) return { status: "invalid_url" };
 
+    const existing = await readOwnSource(context);
+    const wait = cooldownSecondsLeft(existing?.last_synced_at ?? null);
+    if (wait > 0) return { status: "cooldown", retryInSeconds: wait };
+
     // Students have no direct write grant on calendar_sources (CRU-23), so
     // this is the only write path. user_id comes from the verified session.
     const { data: saved, error } = await supabaseAdmin
@@ -69,14 +86,11 @@ export const saveCalendarSource = createServerFn({ method: "POST" })
  */
 export const syncCalendarNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data: existing, error } = await context.supabase
-      .from("calendar_sources")
-      .select("id")
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!existing) return { status: "no_source" as const };
+  .handler(async ({ context }): Promise<SyncResult | { status: "no_source" }> => {
+    const existing = await readOwnSource(context);
+    if (!existing) return { status: "no_source" };
+    const wait = cooldownSecondsLeft(existing.last_synced_at);
+    if (wait > 0) return { status: "cooldown", retryInSeconds: wait };
     return runCalendarSync(existing.id);
   });
 

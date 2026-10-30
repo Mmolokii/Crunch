@@ -32,7 +32,8 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
   component: Onboarding,
 });
 
-type State = "welcome" | "url" | "invalid" | "unreachable" | "syncing" | "empty" | "done";
+type State =
+  "welcome" | "url" | "invalid" | "unreachable" | "cooldown" | "syncing" | "empty" | "done";
 
 const VALID = /^https?:\/\/[^\s]+\/d2l\/le\/calendar\/feed\/[^\s]+$/i;
 
@@ -72,6 +73,11 @@ function Onboarding() {
       }
       if (result.status === "empty") {
         setState("empty");
+        return;
+      }
+      if (result.status === "cooldown") {
+        setErrorNote(`Try again in about ${Math.ceil(result.retryInSeconds / 60)} min.`);
+        setState("cooldown");
         return;
       }
 
@@ -125,7 +131,10 @@ function Onboarding() {
           </section>
         )}
 
-        {(state === "url" || state === "invalid" || state === "unreachable") && (
+        {(state === "url" ||
+          state === "invalid" ||
+          state === "unreachable" ||
+          state === "cooldown") && (
           <section className="surface-card animate-rise rounded-3xl p-7">
             <h1 className="text-2xl font-semibold">Paste your calendar link</h1>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -162,6 +171,13 @@ function Onboarding() {
                   errorNote ??
                   "Your link was saved, but we couldn't fetch that feed just now. Double check the URL, or wait for tonight's automatic sync to try again."
                 }
+              />
+            )}
+            {state === "cooldown" && (
+              <Message
+                tone="warn"
+                title="Your calendar synced a moment ago"
+                body={errorNote ?? "Try again in a couple of minutes."}
               />
             )}
 

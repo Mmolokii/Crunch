@@ -80,6 +80,10 @@ function formatSynced(iso: string | null | undefined) {
   })}.`;
 }
 
+function retryLabel(seconds: number): string {
+  return seconds < 60 ? `${seconds}s` : `${Math.ceil(seconds / 60)} min`;
+}
+
 /** Turns a real SyncResult into the toast copy for it — shared by "Save feed" and "Sync now". */
 function toastSyncResult(result: SyncResult | { status: "no_source" }) {
   switch (result.status) {
@@ -96,6 +100,9 @@ function toastSyncResult(result: SyncResult | { status: "no_source" }) {
       return;
     case "empty":
       toast.warning("Saved, but no due dates have come through yet.");
+      return;
+    case "cooldown":
+      toast.info(`Synced a moment ago. Try again in ${retryLabel(result.retryInSeconds)}.`);
       return;
     case "no_source":
       toast.error("Add a calendar feed first.");
