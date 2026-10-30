@@ -167,6 +167,39 @@ export type Database = {
           },
         ];
       };
+      sync_runs: {
+        Row: {
+          duration_ms: number | null;
+          failed: number;
+          failures: Json;
+          finished_at: string | null;
+          id: string;
+          ok: number;
+          started_at: string;
+          total: number;
+        };
+        Insert: {
+          duration_ms?: number | null;
+          failed?: number;
+          failures?: Json;
+          finished_at?: string | null;
+          id?: string;
+          ok?: number;
+          started_at?: string;
+          total?: number;
+        };
+        Update: {
+          duration_ms?: number | null;
+          failed?: number;
+          failures?: Json;
+          finished_at?: string | null;
+          id?: string;
+          ok?: number;
+          started_at?: string;
+          total?: number;
+        };
+        Relationships: [];
+      };
       users: {
         Row: {
           created_at: string | null;

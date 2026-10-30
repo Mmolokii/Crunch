@@ -66,6 +66,20 @@ Rotating the JWT signing key in Supabase (Project Settings → JWT Keys) invalid
 
 Supabase → Authentication → Users → the user → **Delete user**. Their rows in `users`, `calendar_sources`, `courses`, `events`, `week_scores` and `notification_preferences` are removed through the foreign-key cascades from `auth.users`.
 
+## Checking the nightly sync
+
+Every nightly run writes a row to `sync_runs` (kept for 90 days). In the Supabase SQL editor:
+
+```sql
+-- The last two weeks of runs, newest first
+select started_at, finished_at, total, ok, failed, failures, duration_ms
+from sync_runs order by started_at desc limit 14;
+```
+
+- **No row for last night:** the schedule didn't fire. Check Vercel → the project → Settings → Cron Jobs, and that `CRON_SECRET` is still set.
+- **A row with no `finished_at`:** the run died part-way, most likely a function timeout. Check Vercel's function logs for that time.
+- **`failed` above 0:** `failures` lists each calendar source and its status. `unreachable` usually means Brightspace was down or the student's link changed; `invalid_url` means the stored link no longer passes the allow-list. Runs with real failures also log a line starting `[cron-sync] ATTENTION` in Vercel's function logs.
+
 ## Notification
 
 Crunch handles personal information under South Africa's Protection of Personal Information Act (POPIA).
