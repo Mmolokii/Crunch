@@ -1,0 +1,12 @@
+# Every change needs a review from one of us; these paths are the ones where
+# a second pair of eyes matters most (data access, auth, secrets, CI).
+*                                @Mmolokii @Tshiamo-Fabulous-Aphane
+
+/supabase/migrations/            @Mmolokii @Tshiamo-Fabulous-Aphane
+/src/integrations/supabase/      @Mmolokii @Tshiamo-Fabulous-Aphane
+/src/lib/crunch.functions.ts     @Mmolokii @Tshiamo-Fabulous-Aphane
+/src/lib/calendar-sync.ts        @Mmolokii @Tshiamo-Fabulous-Aphane
+/src/lib/ics-*.ts                @Mmolokii @Tshiamo-Fabulous-Aphane
+/src/lib/security-headers.ts     @Mmolokii @Tshiamo-Fabulous-Aphane
+/src/server.ts                   @Mmolokii @Tshiamo-Fabulous-Aphane
+/.github/                        @Mmolokii @Tshiamo-Fabulous-Aphane

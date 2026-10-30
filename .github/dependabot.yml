@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: "npm" # covers bun.lock
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the TanStack packages, which must move together.
+      tanstack:
+        patterns: ["@tanstack/*"]
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+        exclude-patterns: ["@tanstack/*"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
