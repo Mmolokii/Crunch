@@ -11,6 +11,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { decryptIcsUrl } from "@/lib/ics-encryption";
 import { classifyEvent, parseIcs, type CanonicalEventType } from "@/lib/ics-parser";
+import { isAllowedFeedUrl } from "@/lib/ics-url";
 
 export type SyncResult =
   | { status: "ok"; coursesTouched: number; eventsUpserted: number }
@@ -19,6 +20,9 @@ export type SyncResult =
   | { status: "empty" };
 
 const FETCH_TIMEOUT_MS = 15_000;
+const MAX_REDIRECTS = 3;
+// A real feed is tens of KB; anything near this is not a calendar.
+const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 /**
  * MVP effort/stakes defaults per canonical type. Brightspace's feed carries
@@ -36,13 +40,54 @@ const TYPE_DEFAULTS: Record<CanonicalEventType, { estimatedHours: number; isHigh
     other: { estimatedHours: 1, isHighStakes: false },
   };
 
+/**
+ * Reads at most MAX_BODY_BYTES; returns null if the body is larger, so an
+ * oversized response can't exhaust the function's memory.
+ */
+async function readCapped(response: Response): Promise<string | null> {
+  const declared = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return null;
+  if (!response.body) return "";
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+/**
+ * Redirects are followed by hand so every hop is re-checked against the
+ * allow-list — fetch's own redirect handling would follow one anywhere.
+ */
 async function fetchIcs(url: string): Promise<{ ok: true; body: string } | { ok: false }> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) return { ok: false };
-    return { ok: true, body: await response.text() };
+    let current = url;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      if (!isAllowedFeedUrl(current)) return { ok: false };
+      const response = await fetch(current, { signal: controller.signal, redirect: "manual" });
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (!location) return { ok: false };
+        current = new URL(location, current).toString();
+        continue;
+      }
+      if (!response.ok) return { ok: false };
+      const body = await readCapped(response);
+      return body === null ? { ok: false } : { ok: true, body };
+    }
+    return { ok: false };
   } catch {
     return { ok: false };
   } finally {
@@ -82,8 +127,12 @@ export async function runCalendarSync(calendarSourceId: string): Promise<SyncRes
     .eq("id", calendarSourceId)
     .single();
   if (sourceError) throw new Error(sourceError.message);
+  if (!source.user_id) throw new Error(`calendar_sources ${calendarSourceId} has no user_id`);
+  const userId = source.user_id;
 
   const url = decryptIcsUrl(source.ics_url_encrypted);
+  // Re-checked here, not only on save: the stored value is not trusted.
+  if (!isAllowedFeedUrl(url)) return { status: "invalid_url" };
 
   const fetched = await fetchIcs(url);
   if (!fetched.ok) return { status: "unreachable" };
@@ -108,7 +157,7 @@ export async function runCalendarSync(calendarSourceId: string): Promise<SyncRes
     const code = event.courseCode!;
     let courseId = courseIdByCode.get(code);
     if (!courseId) {
-      courseId = await findOrCreateCourse(source.user_id, code, event.courseName ?? code);
+      courseId = await findOrCreateCourse(userId, code, event.courseName ?? code);
       courseIdByCode.set(code, courseId);
     }
 
