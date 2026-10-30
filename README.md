@@ -68,6 +68,7 @@ bun run dev
 | `ICS_URL_ENCRYPTION_KEY`                                     | Calendar feed URL encryption (`lib/ics-encryption.ts`) | 32-byte hex key, server-only. Generate with `openssl rand -hex 32`                        |
 | `CRON_SECRET`                                                | Nightly sync trigger (`POST /api/cron/sync`)           | Server-only. Generate with `openssl rand -hex 32`                                         |
 | `ICS_ALLOWED_HOSTS`                                          | Feed URL allow-list (`lib/ics-url.ts`)                 | Comma-separated hosts the server may fetch feeds from; defaults to `mystudies.iie.edu.za` |
+| `RESEND_API_KEY` / `SYNC_ALERT_TO` / `SYNC_ALERT_FROM`       | Nightly sync failure emails (`lib/sync-alert.ts`)      | Optional; alerts are off until the key and a recipient are set                            |
 
 Database schema and RLS policies live entirely in `supabase/migrations/` — apply them against your Supabase project with the Supabase CLI before running the app.
 
