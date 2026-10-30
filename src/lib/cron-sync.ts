@@ -19,6 +19,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runCalendarSync, type SyncResult } from "./calendar-sync";
 import { isAuthorizedCronRequest, mapWithConcurrency } from "./cron-auth";
 import { needsAttention, summariseRun, SYNC_RUN_RETENTION_DAYS, type RunSummary } from "./sync-run";
+import { alertConfigFromEnv, buildAlertEmail, sendSyncAlert } from "./sync-alert";
 
 type RowResult = {
   calendarSourceId: string;
@@ -99,12 +100,14 @@ async function startRun(): Promise<string | null> {
 
 async function finishRun(runId: string | null, summary: RunSummary, startedAt: number) {
   if (needsAttention(summary)) {
-    // Picked up by alerting once an email provider is set up (CRU-27); until
-    // then it is the line to search for in Vercel's function logs.
+    // Always in Vercel's function logs; also emailed to the team once
+    // RESEND_API_KEY and SYNC_ALERT_TO are set (CRU-27).
     console.error(
       `[cron-sync] ATTENTION: ${summary.failed} of ${summary.total} calendars failed to sync`,
       summary.failures,
     );
+    const alertConfig = alertConfigFromEnv(process.env);
+    if (alertConfig) await sendSyncAlert(alertConfig, buildAlertEmail(summary, runId, new Date()));
   }
   if (!runId) return;
 
