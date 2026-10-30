@@ -17,25 +17,25 @@ export function SiteFooter() {
           <nav className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm">
             <Link
               to="/about"
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-foreground sm:min-h-0"
             >
               About &amp; team
             </Link>
             <Link
               to="/contact"
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-foreground sm:min-h-0"
             >
               Contact &amp; support
             </Link>
             <Link
               to="/privacy"
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-foreground sm:min-h-0"
             >
               Privacy policy
             </Link>
             <Link
               to="/terms"
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex min-h-11 items-center text-muted-foreground transition-colors hover:text-foreground sm:min-h-0"
             >
               Terms of service
             </Link>
