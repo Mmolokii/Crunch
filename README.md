@@ -77,6 +77,8 @@ Database schema and RLS policies live entirely in `supabase/migrations/` — app
 bun run dev         # start the dev server
 bun run build       # production build
 bun run lint        # eslint
+bun run test        # unit tests (bun test)
+bun run typecheck   # tsc for app and tests; run after a build, which generates the route tree
 bun run format      # prettier --write
 ```
 
@@ -86,7 +88,7 @@ This is an active pilot MVP. Auth, the database schema, the core student and lec
 
 ## Contributing
 
-Feature work happens on short-lived branches off `main`, merged via pull request. Keep commits scoped and the branch buildable — `bun run lint` and `bun run build` should pass before opening a PR.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, review and merge flow, and [AGENTS.md](AGENTS.md) for code conventions and the security model. To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## License
 
