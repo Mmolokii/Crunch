@@ -41,14 +41,13 @@ function AuthPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"student" | "lecturer">("student");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function afterSession(chosenRole?: "student" | "lecturer") {
-    const { data, error } = await supabase.rpc("complete_signup", {
-      _role: chosenRole ?? "student",
-    });
+  // The role is decided by complete_signup from the lecturer allow-list (CRU-24);
+  // nothing the browser sends can change it.
+  async function afterSession() {
+    const { data, error } = await supabase.rpc("complete_signup");
     if (error) {
       toast.error(error.message);
       await supabase.auth.signOut();
@@ -99,7 +98,7 @@ function AuthPage() {
       setNotice("Check your inbox and confirm your email address, then sign in.");
       return;
     }
-    await afterSession(role);
+    await afterSession();
   }
 
   return (
@@ -158,21 +157,6 @@ function AuthPage() {
                 onChange={setPassword}
                 type="password"
               />
-              <div className="space-y-2">
-                <Label>I am a</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["student", "lecturer"] as const).map((r) => (
-                    <Button
-                      key={r}
-                      type="button"
-                      variant={role === r ? "default" : "outline"}
-                      onClick={() => setRole(r)}
-                    >
-                      {r === "student" ? "Student" : "Lecturer"}
-                    </Button>
-                  ))}
-                </div>
-              </div>
               <Button type="submit" className="w-full" disabled={busy}>
                 {busy ? "Creating account…" : "Create account"}
               </Button>
@@ -182,8 +166,8 @@ function AuthPage() {
 
         {notice && <p className="mt-4 text-sm text-destructive">{notice}</p>}
         <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
-          Your role is verified on the server after sign-in — Crunch never trusts a role sent from
-          the browser.
+          New accounts start as students. Lecturer access is granted by the Crunch team — contact us
+          if you teach a course and need it.
         </p>
       </div>
     </div>
