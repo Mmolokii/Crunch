@@ -31,6 +31,8 @@ When unsure, pick the higher severity. It can be lowered later.
 2. **Tell the other maintainer.**
 3. **Decide severity** using the table above.
 4. **Preserve evidence before changing anything:** export the relevant Vercel function logs and Supabase logs (Logs → API, Auth, Postgres) for the time window, and save them outside the repo.
+   - **Who did what in Auth** (sign-ins, signups, account deletions, admin actions) is in **Logs → Auth**. Open an entry to see its `action` (for example `user_deleted`, `login`), `actor_username`, `path` and `status`. The `auth.audit_log_entries` table is **not** written on this project, so don't rely on it.
+   - Supabase keeps these logs for a limited time on the Free plan (about a day), so export them in the first hour.
 5. **Contain** using the procedures below. Containing comes before diagnosing.
 
 ## Containment procedures
