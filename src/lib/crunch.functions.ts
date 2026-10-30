@@ -150,6 +150,84 @@ export const logActualHours = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * "Download my data" (CRU-32, POPIA right of access). Reads through the
+ * student's own session, so Row Level Security limits it to their rows.
+ * The calendar feed link itself is left out: it is a live access token to
+ * their Brightspace calendar and shouldn't sit in a downloaded file.
+ */
+export const exportMyData = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const [profile, source, courses, events, weekScores, prefs] = await Promise.all([
+      supabase
+        .from("users")
+        .select("email, role, school, created_at")
+        .eq("id", userId)
+        .maybeSingle(),
+      supabase
+        .from("calendar_sources")
+        .select("last_synced_at")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabase.from("courses").select("code, name").eq("user_id", userId).order("name"),
+      supabase
+        .from("events")
+        .select(
+          "title, type, due_at, estimated_hours, is_high_stakes, actual_hours_logged, completed_at, source, courses!inner(code)",
+        )
+        .eq("courses.user_id", userId)
+        .order("due_at"),
+      supabase
+        .from("week_scores")
+        .select("week_start_date, total_hours, level, computed_at")
+        .eq("user_id", userId)
+        .order("week_start_date"),
+      supabase
+        .from("notification_preferences")
+        .select("heavy_week, conflict, log_hours, updated_at")
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ]);
+    for (const r of [profile, source, courses, events, weekScores, prefs]) {
+      if (r.error) throw publicError(r.error, "exportMyData");
+    }
+    return {
+      exportedAt: new Date().toISOString(),
+      account: profile.data,
+      calendarFeed: source.data
+        ? {
+            connected: true,
+            lastSyncedAt: source.data.last_synced_at,
+            note: "Your Brightspace link is stored encrypted and is not included in this file. You can see it in Settings.",
+          }
+        : null,
+      courses: courses.data,
+      events: (events.data ?? []).map(({ courses: course, ...e }) => ({
+        ...e,
+        courseCode: (course as { code: string | null }).code,
+      })),
+      weekScores: weekScores.data,
+      notificationPreferences: prefs.data,
+    };
+  });
+
+/**
+ * "Delete my account" (CRU-32). Deleting the auth user cascades through
+ * public.users to every table holding the student's data. Needs the service
+ * role: a student can't delete their own auth user through the API.
+ */
+export const deleteMyAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ confirm: z.literal("DELETE") }).parse(input))
+  .handler(async ({ context }) => {
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(context.userId);
+    if (error)
+      throw publicError({ message: error.message, code: error.code ?? null }, "deleteMyAccount");
+    return { ok: true };
+  });
+
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

@@ -1,16 +1,29 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { LogOut, RefreshCw } from "lucide-react";
+import { Download, LogOut, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell, Container, PageHeading } from "@/components/app/AppShell";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  deleteMyAccount,
+  exportMyData,
   getCalendarSource,
   getMyProfile,
   getNotificationPrefs,
@@ -121,6 +134,42 @@ function SettingsPage() {
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const exportData = useServerFn(exportMyData);
+  const deleteAccount = useServerFn(deleteMyAccount);
+  const [exporting, setExporting] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function onExport() {
+    setExporting(true);
+    try {
+      const data = await exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const href = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = `crunch-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      toast.error("We couldn't prepare your data. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function onDelete() {
+    setDeleting(true);
+    try {
+      await deleteAccount({ data: { confirm: "DELETE" } });
+      await supabase.auth.signOut();
+      toast.success("Your account and all its data have been deleted.");
+      await router.navigate({ to: "/" });
+    } catch {
+      toast.error("We couldn't delete your account. Please try again or contact us.");
+      setDeleting(false);
+    }
+  }
 
   async function togglePref(key: keyof NotificationPrefs, value: boolean) {
     const previous = prefs;
@@ -262,6 +311,65 @@ function SettingsPage() {
               <LogOut className="h-4 w-4" />
               Sign out
             </Button>
+          </div>
+        </section>
+
+        <section className="surface-card animate-rise rounded-2xl p-6">
+          <h2 className="font-display text-lg font-semibold">Your data</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Download a copy of everything Crunch holds about you, or delete your account. Deleting
+            removes your profile, calendar link, courses, deadlines, logged hours and week scores
+            straight away, and can't be undone.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={onExport}
+              disabled={exporting}
+            >
+              <Download className="h-4 w-4" />
+              {exporting ? "Preparing…" : "Download my data"}
+            </Button>
+            <AlertDialog onOpenChange={(open) => !open && setConfirmText("")}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="rounded-full text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete account
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete your Crunch account?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently deletes your account and all of its data. Download your data
+                    first if you want a copy. Type DELETE to confirm.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Input
+                  aria-label="Type DELETE to confirm"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  autoComplete="off"
+                />
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={confirmText !== "DELETE" || deleting}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void onDelete();
+                    }}
+                  >
+                    {deleting ? "Deleting…" : "Delete permanently"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </section>
       </Container>
