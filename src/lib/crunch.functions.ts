@@ -8,6 +8,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { runCalendarSync, type SyncResult } from "@/lib/calendar-sync";
 import { decryptIcsUrl, encryptIcsUrl } from "@/lib/ics-encryption";
 import { isAllowedFeedUrl } from "@/lib/ics-url";
+import { publicError } from "@/lib/server-errors";
 import { cooldownSecondsLeft } from "@/lib/sync-cooldown";
 import type { AppEvent } from "@/lib/workload";
 
@@ -27,7 +28,7 @@ async function readOwnSource(context: { supabase: SupabaseClient<Database>; user
     .select("id, last_synced_at")
     .eq("user_id", context.userId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw publicError(error, "readOwnSource");
   return data;
 }
 
@@ -39,7 +40,7 @@ export const getCalendarSource = createServerFn({ method: "GET" })
       .select("id, ics_url_encrypted, last_synced_at")
       .eq("user_id", context.userId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "getCalendarSource");
     return data
       ? {
           id: data.id,
@@ -75,7 +76,7 @@ export const saveCalendarSource = createServerFn({ method: "POST" })
       )
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "saveCalendarSource");
 
     return runCalendarSync(saved.id);
   });
@@ -103,7 +104,7 @@ export const getMyEvents = createServerFn({ method: "GET" })
         "id, title, type, due_at, estimated_hours, is_high_stakes, actual_hours_logged, completed_at, source, courses!inner(code, name)",
       )
       .order("due_at", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "getMyEvents");
 
     return (data ?? []).map((row) => {
       const course = (row.courses ?? {}) as CourseRow;
@@ -131,7 +132,7 @@ export const getMyCourses = createServerFn({ method: "GET" })
       .from("courses")
       .select("id, code, name, color")
       .order("name", { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "getMyCourses");
     return data ?? [];
   });
 
@@ -145,7 +146,7 @@ export const logActualHours = createServerFn({ method: "POST" })
       _event_id: data.eventId,
       _hours: data.hours,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "logActualHours");
     return { ok: true };
   });
 
@@ -157,7 +158,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .select("id, email, role, school, created_at")
       .eq("id", context.userId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "getMyProfile");
     return data;
   });
 
@@ -179,7 +180,7 @@ export const getNotificationPrefs = createServerFn({ method: "GET" })
       .select("heavy_week, conflict, log_hours")
       .eq("user_id", context.userId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "getNotificationPrefs");
     if (!data) return DEFAULT_PREFS;
     return {
       heavyWeek: data.heavy_week,
@@ -202,7 +203,7 @@ export const saveNotificationPrefs = createServerFn({ method: "POST" })
       },
       { onConflict: "user_id" },
     );
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "saveNotificationPrefs");
     return { ok: true };
   });
 
@@ -218,7 +219,7 @@ export const getLecturerCourses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase.rpc("lecturer_courses");
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "getLecturerCourses");
     return (data ?? []).map((row) => ({
       code: row.code,
       name: row.name,
@@ -236,7 +237,7 @@ export const getCohortWeeks = createServerFn({ method: "GET" })
       _code: data.code,
       _min_cohort: threshold,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "getCohortWeeks");
     return {
       minCohort: threshold,
       weeks: (rows ?? []).map((row) => ({
@@ -254,7 +255,7 @@ export const getLecturerDueDates = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase.rpc("lecturer_due_dates", {
       _code: data.code,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "getLecturerDueDates");
     return (rows ?? []).map((row) => ({
       id: row.id,
       courseId: row.course_id,
@@ -291,7 +292,7 @@ export const upsertDueDate = createServerFn({ method: "POST" })
       ...(data.eventId ? { _event_id: data.eventId } : {}),
     };
     const { data: id, error } = await context.supabase.rpc("lecturer_upsert_due_date", args);
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "upsertDueDate");
     return { id };
   });
 
@@ -302,6 +303,6 @@ export const deleteDueDate = createServerFn({ method: "POST" })
     const { error } = await context.supabase.rpc("lecturer_delete_due_date", {
       _event_id: data.eventId,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw publicError(error, "deleteDueDate");
     return { ok: true };
   });

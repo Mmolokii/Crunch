@@ -12,9 +12,11 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { decryptIcsUrl } from "@/lib/ics-encryption";
 import { classifyEvent, parseIcs, type CanonicalEventType } from "@/lib/ics-parser";
 import { isAllowedFeedUrl } from "@/lib/ics-url";
+import { GENERIC_ERROR_MESSAGE, publicError } from "@/lib/server-errors";
+import { dedupeEvents, eventKey, staleEventIds } from "@/lib/sync-plan";
 
 export type SyncResult =
-  | { status: "ok"; coursesTouched: number; eventsUpserted: number }
+  | { status: "ok"; coursesTouched: number; eventsUpserted: number; eventsRemoved: number }
   | { status: "invalid_url" }
   | { status: "unreachable" }
   | { status: "empty" }
@@ -98,28 +100,23 @@ async function fetchIcs(url: string): Promise<{ ok: true; body: string } | { ok:
 }
 
 /**
- * Finds the student's existing course row by (user_id, code) or creates one.
- * No DB-level unique constraint backs this pair (consistent with how
- * lecturer_upsert_due_date does its own existence check rather than relying
- * on ON CONFLICT), so this is a manual check-then-write, same pattern.
+ * Creates any of the student's courses that don't exist yet and returns the
+ * id of every course in the feed, in one round trip. Backed by the
+ * courses (user_id, code) unique constraint. Course names follow the feed.
  */
-async function findOrCreateCourse(userId: string, code: string, name: string): Promise<string> {
-  const { data: existing, error: findError } = await supabaseAdmin
+async function upsertCourses(
+  userId: string,
+  names: Map<string, string>,
+): Promise<Map<string, string>> {
+  const { data, error } = await supabaseAdmin
     .from("courses")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("code", code)
-    .maybeSingle();
-  if (findError) throw new Error(findError.message);
-  if (existing) return existing.id;
-
-  const { data: created, error: insertError } = await supabaseAdmin
-    .from("courses")
-    .insert({ user_id: userId, code, name })
-    .select("id")
-    .single();
-  if (insertError) throw new Error(insertError.message);
-  return created.id;
+    .upsert(
+      [...names].map(([code, name]) => ({ user_id: userId, code, name })),
+      { onConflict: "user_id,code" },
+    )
+    .select("id, code");
+  if (error) throw publicError(error, "upsertCourses");
+  return new Map(data.map((c) => [c.code ?? "", c.id]));
 }
 
 export async function runCalendarSync(calendarSourceId: string): Promise<SyncResult> {
@@ -128,8 +125,11 @@ export async function runCalendarSync(calendarSourceId: string): Promise<SyncRes
     .select("id, user_id, ics_url_encrypted")
     .eq("id", calendarSourceId)
     .single();
-  if (sourceError) throw new Error(sourceError.message);
-  if (!source.user_id) throw new Error(`calendar_sources ${calendarSourceId} has no user_id`);
+  if (sourceError) throw publicError(sourceError, "runCalendarSync");
+  if (!source.user_id) {
+    console.error(`[runCalendarSync] calendar_sources ${calendarSourceId} has no user_id`);
+    throw new Error(GENERIC_ERROR_MESSAGE);
+  }
   const userId = source.user_id;
 
   const url = decryptIcsUrl(source.ics_url_encrypted);
@@ -150,64 +150,85 @@ export async function runCalendarSync(calendarSourceId: string): Promise<SyncRes
     .map(classifyEvent)
     .filter((e): e is NonNullable<typeof e> => e !== null && !e.skip && e.courseCode !== null);
 
+  // An empty feed returns here, before anything is removed below: a feed that
+  // briefly comes back empty must never wipe a student's calendar.
   if (classified.length === 0) return { status: "empty" };
 
-  const courseIdByCode = new Map<string, string>();
-  let eventsUpserted = 0;
+  const events = dedupeEvents(classified);
+  const courseNames = new Map(events.map((e) => [e.courseCode!, e.courseName ?? e.courseCode!]));
+  const courseIdByCode = await upsertCourses(userId, courseNames);
 
-  for (const event of classified) {
-    const code = event.courseCode!;
-    let courseId = courseIdByCode.get(code);
-    if (!courseId) {
-      courseId = await findOrCreateCourse(userId, code, event.courseName ?? code);
-      courseIdByCode.set(code, courseId);
-    }
-
-    const defaults = TYPE_DEFAULTS[event.type];
-
-    const { data: existingEvent, error: findEventError } = await supabaseAdmin
-      .from("events")
-      .select("id")
-      .eq("course_id", courseId)
-      .eq("external_uid", event.uid)
-      .maybeSingle();
-    if (findEventError) throw new Error(findEventError.message);
-
-    if (existingEvent) {
-      // Deliberately never touches actual_hours_logged / completed_at — both
-      // are simply absent from this SET clause, so a re-sync can't silently
-      // undo a student's logged hours or completion. See the ADR.
-      const { error } = await supabaseAdmin
-        .from("events")
-        .update({
-          title: event.title,
-          due_at: event.dueAt.toISOString(),
-          type: event.type,
-          estimated_hours: defaults.estimatedHours,
-          is_high_stakes: defaults.isHighStakes,
-        })
-        .eq("id", existingEvent.id);
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await supabaseAdmin.from("events").insert({
-        course_id: courseId,
+  // One bulk upsert on events (course_id, external_uid). The payload
+  // deliberately leaves out actual_hours_logged and completed_at, so a
+  // re-sync can't undo a student's logged hours or completion (see the ADR),
+  // and leaves out source, so new rows get the 'ics_sync' default and
+  // existing rows keep theirs.
+  const { error: upsertError } = await supabaseAdmin.from("events").upsert(
+    events.map((event) => {
+      const defaults = TYPE_DEFAULTS[event.type];
+      return {
+        course_id: courseIdByCode.get(event.courseCode!)!,
         external_uid: event.uid,
         title: event.title,
         due_at: event.dueAt.toISOString(),
         type: event.type,
         estimated_hours: defaults.estimatedHours,
         is_high_stakes: defaults.isHighStakes,
-        source: "ics_sync",
-      });
-      if (error) throw new Error(error.message);
-    }
-    eventsUpserted += 1;
-  }
+      };
+    }),
+    { onConflict: "course_id,external_uid" },
+  );
+  if (upsertError) throw publicError(upsertError, "runCalendarSync");
 
-  await supabaseAdmin
+  const eventsRemoved = await removeStaleEvents(
+    userId,
+    new Set(events.map((e) => eventKey(e.courseCode!, e.uid))),
+  );
+
+  const { error: stampError } = await supabaseAdmin
     .from("calendar_sources")
     .update({ last_synced_at: new Date().toISOString() })
     .eq("id", calendarSourceId);
+  if (stampError) throw publicError(stampError, "runCalendarSync");
 
-  return { status: "ok", coursesTouched: courseIdByCode.size, eventsUpserted };
+  return {
+    status: "ok",
+    coursesTouched: courseIdByCode.size,
+    eventsUpserted: events.length,
+    eventsRemoved,
+  };
+}
+
+/** Deletes this student's synced events that have left the feed; see staleEventIds for what is kept. */
+async function removeStaleEvents(userId: string, inFeed: Set<string>): Promise<number> {
+  const { data: rows, error } = await supabaseAdmin
+    .from("events")
+    .select(
+      "id, external_uid, source, actual_hours_logged, completed_at, courses!inner(code, user_id)",
+    )
+    .eq("courses.user_id", userId)
+    .eq("source", "ics_sync");
+  if (error) throw publicError(error, "removeStaleEvents");
+
+  const stale = staleEventIds(
+    rows.map((r) => ({
+      id: r.id,
+      courseCode: (r.courses as { code: string | null }).code ?? "",
+      externalUid: r.external_uid,
+      source: r.source,
+      actualHoursLogged: r.actual_hours_logged === null ? null : Number(r.actual_hours_logged),
+      completedAt: r.completed_at,
+    })),
+    inFeed,
+  );
+  // Batched: the ids travel in the query string, and a semester rollover can
+  // retire hundreds at once.
+  for (let i = 0; i < stale.length; i += 100) {
+    const { error: deleteError } = await supabaseAdmin
+      .from("events")
+      .delete()
+      .in("id", stale.slice(i, i + 100));
+    if (deleteError) throw publicError(deleteError, "removeStaleEvents");
+  }
+  return stale.length;
 }

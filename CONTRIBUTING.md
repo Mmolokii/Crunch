@@ -35,3 +35,7 @@ Unit tests live next to the code as `*.test.ts` and run with Bun's test runner (
 ## Reporting security issues
 
 Don't open a public issue. See [SECURITY.md](SECURITY.md).
+
+## When something goes wrong in production
+
+Follow [docs/runbook.md](docs/runbook.md): severity levels, how to rotate each secret, how to stop signups or take the app offline, and who must be told.
