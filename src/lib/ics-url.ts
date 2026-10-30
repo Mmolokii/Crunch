@@ -8,7 +8,7 @@
  * path, no credentials in the URL, default port only.
  */
 
-const DEFAULT_ALLOWED_HOSTS = "brightspace.myemeris.edu.za";
+const DEFAULT_ALLOWED_HOSTS = "mystudies.iie.edu.za";
 const FEED_PATH = /^\/d2l\/le\/calendar\/feed\/[^\s]+$/i;
 
 /**
@@ -16,7 +16,9 @@ const FEED_PATH = /^\/d2l\/le\/calendar\/feed\/[^\s]+$/i;
  * "*." matches any subdomain of the rest (not the bare domain itself).
  */
 function allowedHosts(): string[] {
-  return (process.env["ICS_ALLOWED_HOSTS"] ?? DEFAULT_ALLOWED_HOSTS)
+  // || not ??: a blank ICS_ALLOWED_HOSTS falls back to the default instead of
+  // silently rejecting every feed.
+  return (process.env["ICS_ALLOWED_HOSTS"] || DEFAULT_ALLOWED_HOSTS)
     .split(",")
     .map((h) => h.trim().toLowerCase())
     .filter(Boolean);
