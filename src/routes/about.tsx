@@ -62,12 +62,13 @@ function AboutPage() {
         <p>
           It is rules-based, not a black box. Each event gets an estimated effort based on its type
           and whether it is high-stakes; those hours are summed per week and mapped to Light,
-          Moderate, Heavy or Brutal. When you log how long something actually took, those numbers
-          adjust the estimates for your future work.
+          Moderate, Heavy or Brutal. When you log how long something actually took, that number
+          replaces the estimate for it, and Insights shows where the estimates run high or low for
+          you.
         </p>
         <p>
-          That means it is honest about being wrong at first, and gets more useful the more you tell
-          it. No AI mystique.
+          That means it is honest about being wrong at first, and the more you log, the more your
+          weeks reflect how you actually work. No AI mystique.
         </p>
       </Section>
 
