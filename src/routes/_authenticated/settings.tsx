@@ -265,7 +265,8 @@ function SettingsPage() {
         <section className="surface-card animate-rise rounded-2xl p-6">
           <h2 className="font-display text-lg font-semibold">Notifications</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Saved to your account. Delivery arrives with the nightly sync service.
+            Coming soon. Your choices are saved now, but Crunch doesn&apos;t send notifications yet
+            during the pilot.
           </p>
           <div className="mt-4 divide-y divide-border/70">
             {notifications.map((n) => (

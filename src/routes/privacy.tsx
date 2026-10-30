@@ -39,12 +39,13 @@ function PrivacyPage() {
         </p>
         <p>
           <strong className="text-foreground">Your logged hours.</strong> If you tell us how long an
-          assignment actually took, we store that number against that assignment so our estimates
-          get better for you over time.
+          assignment actually took, we store that number against that assignment. It replaces our
+          estimate for that item in your week totals, and Insights compares the two for you.
         </p>
         <p>
           <strong className="text-foreground">Your account details.</strong> Your school email
-          address, your school, and whether you signed up as a student or a lecturer.
+          address and your role. Every account is a student account; lecturer access is granted by
+          the Crunch team.
         </p>
       </Section>
 
@@ -59,9 +60,10 @@ function PrivacyPage() {
       <Section title="How your calendar feed URL is stored">
         <p>
           Your calendar subscription URL is a secret: anyone holding it can read your course
-          calendar. We store it encrypted at rest, never display it back in full, and never include
-          it in logs, analytics, or error reports. You can replace or remove it at any time from
-          Settings, which immediately stops future syncs.
+          calendar. We store it encrypted at rest, only ever show it back to you (in Settings), and
+          never include it in logs, analytics, error reports or the data download. Our server only
+          ever fetches it from the university&apos;s Brightspace. You can replace it at any time in
+          Settings; deleting your account removes it.
         </p>
       </Section>
 
@@ -79,9 +81,10 @@ function PrivacyPage() {
 
       <Section title="Sharing">
         <p>
-          We do not sell your data and do not share it with third parties for marketing. Data is
-          stored in our own database, and access is restricted at the database level so your rows
-          are only ever readable by you.
+          We do not sell your data and do not share it with third parties for marketing. It is
+          stored in a Supabase database and served by an app hosted on Vercel; both act only as our
+          infrastructure. Access is restricted at the database level so your rows are only ever
+          readable by you.
         </p>
       </Section>
 

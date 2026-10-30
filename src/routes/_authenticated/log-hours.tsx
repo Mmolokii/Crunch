@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/log-hours")({
       {
         name: "description",
         content:
-          "Record how long each finished assignment actually took. One number per item, and your future estimates get sharper.",
+          "Record how long each finished assignment actually took. One number per item; it replaces Crunch's estimate in your week totals.",
       },
       { property: "og:title", content: "Log your hours — Crunch" },
       {
@@ -78,7 +78,7 @@ function LogHours() {
       <PageHeading
         eyebrow="Past due"
         title="How long did it take?"
-        subtitle="Only you ever see these numbers. They tune your own estimates and nothing else."
+        subtitle="Only you ever see these numbers. They replace Crunch's estimate for that item, and Insights shows where estimates ran high or low."
       />
 
       <Container className="flex max-w-2xl flex-col gap-3">

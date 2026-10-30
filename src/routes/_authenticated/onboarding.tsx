@@ -35,7 +35,9 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
 type State =
   "welcome" | "url" | "invalid" | "unreachable" | "cooldown" | "syncing" | "empty" | "done";
 
-const VALID = /^https?:\/\/[^\s]+\/d2l\/le\/calendar\/feed\/[^\s]+$/i;
+// A quick shape check before the request; the server's isAllowedFeedUrl
+// (src/lib/ics-url.ts) has the final say, including which host is allowed.
+const VALID = /^https:\/\/[^\s/]+\/d2l\/le\/calendar\/feed\/[^\s]+$/i;
 
 type SyncedCourse = { id: string; code: string | null; name: string };
 
@@ -138,8 +140,9 @@ function Onboarding() {
           <section className="surface-card animate-rise rounded-3xl p-7">
             <h1 className="text-2xl font-semibold">Paste your calendar link</h1>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              In Brightspace open <span className="text-foreground">Calendar → Subscribe</span> and
-              copy the subscription URL.
+              In Brightspace (mystudies.iie.edu.za) open{" "}
+              <span className="text-foreground">Calendar → Subscribe</span> and copy the
+              subscription URL.
             </p>
 
             <div className="mt-6 flex flex-col gap-2">
@@ -160,7 +163,7 @@ function Onboarding() {
               <Message
                 tone="warn"
                 title="That doesn't look like a Brightspace feed"
-                body="The link should contain /d2l/le/calendar/feed/. Copy it straight from the Subscribe dialog rather than the page address bar."
+                body="Use the link from mystudies.iie.edu.za → Calendar → Subscribe. It starts with https://mystudies.iie.edu.za/d2l/le/calendar/feed/ — copy it from the Subscribe dialog, not the page address bar."
               />
             )}
             {state === "unreachable" && (

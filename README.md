@@ -84,7 +84,9 @@ bun run format      # prettier --write
 
 ## Project status
 
-This is an active pilot MVP. Auth, the database schema, the core student and lecturer app screens, and the Brightspace calendar sync engine are all built against live Supabase data — students can connect a real calendar feed and get real scored weeks end to end. Remaining before pilot: the nightly sync trigger needs an actual schedule wired to it (depends on picking a deploy target), and the sync pipeline hasn't yet been tested against a second real account or exam-period data. See open issues for details.
+This is a pilot MVP running in production at crunch-taupe.vercel.app. Students can connect their Brightspace calendar, get scored weeks, log hours, and download or delete their data; the calendar syncs nightly on Vercel Cron, with each run logged. Isolation between students is tested against production by `scripts/adversarial-test-matrix.ts`.
+
+Still to do before inviting a full pilot cohort: production email (custom SMTP), backups, the POPIA retention policy and Information Officer, and checking the lecturer screens with a real lecturer account. Notification delivery isn't built yet, and the exam-period classifier hasn't seen real exam data. The pilot is launched from [docs/go-live-checklist.md](docs/go-live-checklist.md); open work is tracked in Linear.
 
 ## Contributing
 
