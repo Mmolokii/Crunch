@@ -45,8 +45,8 @@ async function main() {
     .select("id, ics_url_encrypted");
   if (error) throw new Error(error.message);
 
-  // decryptIcsUrl returns its input unchanged when it can't decrypt, so a row
-  // only counts as readable if the result is a URL the sync would accept.
+  // decryptIcsUrl returns "" when it can't decrypt, so a row only counts as
+  // readable if the result is a URL the sync would accept.
   const prepared = (rows ?? []).map((row) => {
     const plain = withKey(oldKey, () => decryptIcsUrl(row.ics_url_encrypted));
     return { id: row.id, plain, readable: isAllowedFeedUrl(plain) };

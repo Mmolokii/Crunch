@@ -5,9 +5,11 @@
  * base64). Key is a 32-byte value, hex-encoded, from ICS_URL_ENCRYPTION_KEY —
  * server-side only, never sent to the client.
  *
- * Rows saved before this existed are still plaintext URLs. decryptIcsUrl
- * returns anything that doesn't match the iv:tag:ciphertext shape unchanged,
- * so old rows keep working rather than breaking on the next read.
+ * Anything that doesn't decrypt with the current key comes back as "", which
+ * the feed allow-list rejects, so the sync reports invalid_url. There used to
+ * be a fallback that returned unencrypted values as-is for rows saved before
+ * encryption existed; production has none left, so it was removed (CRU-35)
+ * rather than leave a path for a plaintext URL to be trusted.
  */
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
@@ -40,7 +42,7 @@ export function encryptIcsUrl(plainUrl: string): string {
 
 export function decryptIcsUrl(stored: string): string {
   const parts = stored.split(":");
-  if (parts.length !== 3) return stored; // legacy plaintext row
+  if (parts.length !== 3) return "";
 
   const [ivB64, tagB64, dataB64] = parts;
   try {
@@ -53,8 +55,7 @@ export function decryptIcsUrl(stored: string): string {
     const plaintext = Buffer.concat([decipher.update(data), decipher.final()]);
     return plaintext.toString("utf8");
   } catch {
-    // Didn't actually match our ciphertext shape (e.g. a plaintext URL that
-    // happens to split into three colon-separated parts) — return as stored.
-    return stored;
+    // Wrong key, tampered data, or not our ciphertext at all.
+    return "";
   }
 }

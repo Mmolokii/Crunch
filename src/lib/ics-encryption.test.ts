@@ -32,13 +32,18 @@ describe("encryptIcsUrl / decryptIcsUrl", () => {
     const flipped = Buffer.from(data!, "base64");
     flipped[0] = flipped[0]! ^ 1;
     const tampered = `${iv}:${tag}:${flipped.toString("base64")}`;
-    expect(decryptIcsUrl(tampered)).toBe(tampered);
+    expect(decryptIcsUrl(tampered)).toBe("");
   });
 
   test("a different key doesn't decrypt it", () => {
     const stored = encryptIcsUrl(URL);
     process.env["ICS_URL_ENCRYPTION_KEY"] = randomBytes(32).toString("hex");
-    expect(decryptIcsUrl(stored)).toBe(stored);
+    expect(decryptIcsUrl(stored)).toBe("");
+  });
+
+  test("an unencrypted value is never trusted as a URL", () => {
+    expect(decryptIcsUrl(URL)).toBe("");
+    expect(decryptIcsUrl("https://mystudies.iie.edu.za:443/x")).toBe("");
   });
 
   test("refuses to encrypt without a valid 32-byte key", () => {
