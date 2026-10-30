@@ -3,6 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { handleNightlySync } from "./lib/cron-sync";
+import { withSecurityHeaders } from "./lib/security-headers";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -47,27 +48,31 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
-    try {
-      // Nightly sync trigger — see docs/adr/0001-sync-pipeline.md (Trigger 3)
-      // and src/lib/cron-sync.ts. Handled here, ahead of the TanStack Start
-      // SSR handler below, rather than as a file-based route — this repo's
-      // pinned TanStack Start version has no verified public API for a
-      // request/response-only route with no page component, and this fetch
-      // handler is already the one place every request passes through.
-      const url = new URL(request.url);
-      if (url.pathname === "/api/cron/sync") {
-        return await handleNightlySync(request);
-      }
-
-      const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
-    } catch (error) {
-      console.error(error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
-    }
+    return withSecurityHeaders(await handle(request, env, ctx));
   },
 };
+
+async function handle(request: Request, env: unknown, ctx: unknown): Promise<Response> {
+  try {
+    // Nightly sync trigger — see docs/adr/0001-sync-pipeline.md (Trigger 3)
+    // and src/lib/cron-sync.ts. Handled here, ahead of the TanStack Start
+    // SSR handler below, rather than as a file-based route — this repo's
+    // pinned TanStack Start version has no verified public API for a
+    // request/response-only route with no page component, and this fetch
+    // handler is already the one place every request passes through.
+    const url = new URL(request.url);
+    if (url.pathname === "/api/cron/sync") {
+      return await handleNightlySync(request);
+    }
+
+    const handler = await getServerEntry();
+    const response = await handler.fetch(request, env, ctx);
+    return await normalizeCatastrophicSsrResponse(response);
+  } catch (error) {
+    console.error(error);
+    return new Response(renderErrorPage(), {
+      status: 500,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+  }
+}
