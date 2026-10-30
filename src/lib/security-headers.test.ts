@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { contentSecurityPolicy, withSecurityHeaders } from "./security-headers";
+import { CSP_NONCE_HEADER } from "./csp-nonce";
+import {
+  contentSecurityPolicy,
+  createNonce,
+  withNonceHeader,
+  withSecurityHeaders,
+} from "./security-headers";
 
 const saved = { url: process.env["SUPABASE_URL"], vite: process.env["VITE_SUPABASE_URL"] };
 
@@ -26,7 +32,7 @@ function directives(csp: string): Map<string, string> {
 describe("contentSecurityPolicy", () => {
   test("allows fetches only to this app and the configured Supabase origin", () => {
     process.env["SUPABASE_URL"] = "https://abc.supabase.co/rest/v1";
-    expect(directives(contentSecurityPolicy()).get("connect-src")).toBe(
+    expect(directives(contentSecurityPolicy("n0nce")).get("connect-src")).toBe(
       "'self' https://abc.supabase.co",
     );
   });
@@ -34,20 +40,20 @@ describe("contentSecurityPolicy", () => {
   test("falls back to VITE_SUPABASE_URL, and to 'self' alone without either", () => {
     delete process.env["SUPABASE_URL"];
     process.env["VITE_SUPABASE_URL"] = "https://xyz.supabase.co";
-    expect(directives(contentSecurityPolicy()).get("connect-src")).toBe(
+    expect(directives(contentSecurityPolicy("n0nce")).get("connect-src")).toBe(
       "'self' https://xyz.supabase.co",
     );
     delete process.env["VITE_SUPABASE_URL"];
-    expect(directives(contentSecurityPolicy()).get("connect-src")).toBe("'self'");
+    expect(directives(contentSecurityPolicy("n0nce")).get("connect-src")).toBe("'self'");
   });
 
   test("blocks framing, plugins, foreign scripts and <base> hijacking", () => {
-    const d = directives(contentSecurityPolicy());
+    const d = directives(contentSecurityPolicy("n0nce"));
     expect(d.get("frame-ancestors")).toBe("'none'");
     expect(d.get("object-src")).toBe("'none'");
     expect(d.get("base-uri")).toBe("'self'");
     expect(d.get("form-action")).toBe("'self'");
-    expect(d.get("script-src")).toBe("'self' 'unsafe-inline'");
+    expect(d.get("script-src")).toBe("'self' 'nonce-n0nce'");
   });
 });
 
@@ -57,7 +63,7 @@ describe("withSecurityHeaders", () => {
       status: 404,
       headers: { "content-type": "text/html" },
     });
-    const secured = withSecurityHeaders(original);
+    const secured = withSecurityHeaders(original, "n0nce");
 
     expect(secured.status).toBe(404);
     expect(await secured.text()).toBe("<p>hi</p>");
@@ -69,6 +75,56 @@ describe("withSecurityHeaders", () => {
 
   test("works on a response whose headers are immutable", () => {
     const immutable = Response.redirect("https://example.com/", 302);
-    expect(withSecurityHeaders(immutable).headers.get("location")).toBe("https://example.com/");
+    expect(withSecurityHeaders(immutable, "n0nce").headers.get("location")).toBe(
+      "https://example.com/",
+    );
+  });
+});
+
+describe("nonces", () => {
+  test("inline scripts need this response's nonce; 'unsafe-inline' is gone from script-src", () => {
+    const scriptSrc = directives(contentSecurityPolicy("abc123")).get("script-src")!;
+    expect(scriptSrc).toContain("'nonce-abc123'");
+    expect(scriptSrc).not.toContain("unsafe-inline");
+  });
+
+  test("each nonce is fresh, 128-bit and base64", () => {
+    const a = createNonce();
+    expect(a).not.toBe(createNonce());
+    expect(Buffer.from(a, "base64")).toHaveLength(16);
+  });
+
+  test("the router's nonce header always carries the server's value, not one the client sent", () => {
+    const forged = new Request("https://crunch.test/", {
+      headers: { [CSP_NONCE_HEADER]: "attacker" },
+    });
+    const handed = withNonceHeader(forged, "server-made");
+    expect(handed.headers.get(CSP_NONCE_HEADER)).toBe("server-made");
+    expect(handed.url).toBe("https://crunch.test/");
+  });
+
+  test("keeps the method and body of a POST", async () => {
+    const post = new Request("https://crunch.test/_serverFn/x", {
+      method: "POST",
+      body: "payload",
+    });
+    const handed = withNonceHeader(post, "n");
+    expect(handed.method).toBe("POST");
+    expect(await handed.text()).toBe("payload");
+  });
+});
+
+describe("development", () => {
+  test("keeps 'unsafe-inline' so Vite's own inline scripts run", () => {
+    const original = process.env["NODE_ENV"];
+    process.env["NODE_ENV"] = "development";
+    try {
+      expect(directives(contentSecurityPolicy("n")).get("script-src")).toBe(
+        "'self' 'unsafe-inline'",
+      );
+    } finally {
+      if (original === undefined) delete process.env["NODE_ENV"];
+      else process.env["NODE_ENV"] = original;
+    }
   });
 });
