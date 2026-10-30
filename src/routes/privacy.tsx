@@ -85,11 +85,21 @@ function PrivacyPage() {
         </p>
       </Section>
 
+      <Section title="Getting a copy of your data">
+        <p>
+          Settings → Your data → Download my data gives you a file with everything Crunch holds
+          about you: your account, courses, deadlines, logged hours, week scores and notification
+          settings. Your Brightspace link is left out of the file because it gives access to your
+          calendar; you can see it in Settings.
+        </p>
+      </Section>
+
       <Section title="Deleting your data">
         <p>
-          Ask us to delete your account and we remove your account row, your calendar source, your
-          courses, your events, and your week scores. Deletion cascades — nothing of yours is left
-          behind in aggregates that could be traced back to you.
+          Settings → Your data → Delete account removes your account, your calendar link, your
+          courses, your events, your logged hours and your week scores straight away. Deletion
+          cascades, so nothing of yours is left behind in aggregates that could be traced back to
+          you. You can also ask us to do it for you.
         </p>
       </Section>
 
