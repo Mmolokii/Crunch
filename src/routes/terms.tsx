@@ -34,8 +34,8 @@ function TermsPage() {
       <Section title="Who can use Crunch">
         <p>
           Crunch is open to current members of the university with a valid school email address.
-          Accounts are created with the role you select at signup — student or lecturer — and that
-          role is verified and enforced on our servers, not in your browser.
+          Every account starts as a student account. Lecturer access is granted by the Crunch team,
+          and roles are enforced on our servers, not in your browser.
         </p>
       </Section>
 
@@ -76,8 +76,8 @@ function TermsPage() {
 
       <Section title="Ending it">
         <p>
-          You can stop using Crunch and request deletion at any time. We may close accounts that are
-          no longer associated with the university.
+          You can stop using Crunch and delete your account at any time from Settings → Your data.
+          We may close accounts that are no longer associated with the university.
         </p>
       </Section>
     </LegalPage>
