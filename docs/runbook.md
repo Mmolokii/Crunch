@@ -94,14 +94,27 @@ Crunch handles personal information under South Africa's Protection of Personal 
 
 ### Database restore
 
-**The project is on Supabase's Free plan, which includes no automatic backups.** Until the plan is upgraded (Pro keeps 7 days of daily backups), the only restore point is a manual dump:
+**The project is on Supabase's Free plan, which includes no automatic backups** (CRU-42). Until the plan is upgraded (Pro keeps 7 days of daily backups), the only restore point is a manual dump taken with `scripts/backup-db.sh`:
 
 ```sh
-supabase db dump --linked -f schema.sql
-supabase db dump --linked --data-only -f data.sql
+SUPABASE_DB_URL='<Supabase → Connect → Session pooler URI>' \
+BACKUP_PASSPHRASE='<from the password manager>' \
+scripts/backup-db.sh
 ```
 
-Take one before applying any migration to production and at least weekly. Dumps contain personal information: store them encrypted, outside the repository, and delete them after 30 days.
+It dumps the `public`, `auth` and `supabase_migrations` schemas and encrypts the dump before it touches disk. It then checks the file can be decrypted and read, writes it to `~/CrunchBackups` (owner-only, outside the repo), and deletes encrypted dumps older than 30 days, because they hold personal information. Take one **before every production migration, weekly, and on launch day**. Without the passphrase, a dump can't be restored, so keep it in the team's password manager. `scripts/backup-db.sh --self-test` checks the encryption without touching the database.
+
+**To restore** (practise this on a non-production project first, never straight onto production):
+
+```sh
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:BACKUP_PASSPHRASE \
+  -in ~/CrunchBackups/crunch-<stamp>.dump.enc -out /tmp/crunch.dump
+pg_restore --list /tmp/crunch.dump                         # check what's inside
+pg_restore --data-only --schema=public --dbname="$TARGET_DB_URL" /tmp/crunch.dump
+rm /tmp/crunch.dump
+```
+
+Restore into a project whose schema already matches (apply `supabase/migrations/` first). Restoring `auth` (accounts) into another project is more involved; follow Supabase's migration guide, and treat that as a reason to prefer Pro.
 
 Schema can always be rebuilt from `supabase/migrations/`; student data can only come from a dump. If data is lost with no dump, students reconnect their calendar feeds and the next sync rebuilds their courses and deadlines. Logged hours cannot be recovered that way.
 
