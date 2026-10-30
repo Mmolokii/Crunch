@@ -114,9 +114,13 @@ function AuthPage() {
         </p>
 
         <Tabs defaultValue="signin" className="mt-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="signin">Sign in</TabsTrigger>
-            <TabsTrigger value="signup">Create account</TabsTrigger>
+          <TabsList className="grid h-auto w-full grid-cols-2">
+            <TabsTrigger value="signin" className="min-h-11">
+              Sign in
+            </TabsTrigger>
+            <TabsTrigger value="signup" className="min-h-11">
+              Create account
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="signin">
