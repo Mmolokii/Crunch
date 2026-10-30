@@ -58,15 +58,16 @@ bun run dev
 
 ### Environment variables
 
-| Variable                                                     | Where it's used                                        | Notes                                                              |
-| ------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------ |
-| `SUPABASE_URL` / `VITE_SUPABASE_URL`                         | Server and client Supabase clients                     | Your Supabase project URL                                          |
-| `SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY` | Server and client Supabase clients                     | Anon/publishable key — safe to expose client-side                  |
-| `SUPABASE_SERVICE_ROLE_KEY`                                  | Server-only admin client (`client.server.ts`)          | Bypasses RLS — never expose to the client, never commit            |
-| `SUPABASE_PROJECT_ID`                                        | Local tooling                                          | —                                                                  |
-| `LECTURER_MIN_COHORT`                                        | Cohort heatmap threshold                               | Optional, defaults to 8                                            |
-| `ICS_URL_ENCRYPTION_KEY`                                     | Calendar feed URL encryption (`lib/ics-encryption.ts`) | 32-byte hex key, server-only. Generate with `openssl rand -hex 32` |
-| `CRON_SECRET`                                                | Nightly sync trigger (`POST /api/cron/sync`)           | Server-only. Generate with `openssl rand -hex 32`                  |
+| Variable                                                     | Where it's used                                        | Notes                                                                                            |
+| ------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `SUPABASE_URL` / `VITE_SUPABASE_URL`                         | Server and client Supabase clients                     | Your Supabase project URL                                                                        |
+| `SUPABASE_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY` | Server and client Supabase clients                     | Anon/publishable key — safe to expose client-side                                                |
+| `SUPABASE_SERVICE_ROLE_KEY`                                  | Server-only admin client (`client.server.ts`)          | Bypasses RLS — never expose to the client, never commit                                          |
+| `SUPABASE_PROJECT_ID`                                        | Local tooling                                          | —                                                                                                |
+| `LECTURER_MIN_COHORT`                                        | Cohort heatmap threshold                               | Optional, defaults to 8                                                                          |
+| `ICS_URL_ENCRYPTION_KEY`                                     | Calendar feed URL encryption (`lib/ics-encryption.ts`) | 32-byte hex key, server-only. Generate with `openssl rand -hex 32`                               |
+| `CRON_SECRET`                                                | Nightly sync trigger (`POST /api/cron/sync`)           | Server-only. Generate with `openssl rand -hex 32`                                                |
+| `ICS_ALLOWED_HOSTS`                                          | Feed URL allow-list (`lib/ics-url.ts`)                 | Comma-separated hosts the server may fetch feeds from; defaults to `brightspace.myemeris.edu.za` |
 
 Database schema and RLS policies live entirely in `supabase/migrations/` — apply them against your Supabase project with the Supabase CLI before running the app.
 

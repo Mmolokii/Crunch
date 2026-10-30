@@ -2,19 +2,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { runCalendarSync } from "@/lib/calendar-sync";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { runCalendarSync, type SyncResult } from "@/lib/calendar-sync";
 import { decryptIcsUrl, encryptIcsUrl } from "@/lib/ics-encryption";
+import { isAllowedFeedUrl } from "@/lib/ics-url";
 import type { AppEvent } from "@/lib/workload";
 
 export type { SyncResult } from "@/lib/calendar-sync";
 
+// Shape only; whether Crunch will fetch it is isAllowedFeedUrl's call, so a
+// wrong host comes back as an "invalid_url" result the UI can render.
 const icsUrlSchema = z.object({
-  icsUrl: z
-    .string()
-    .trim()
-    .min(1)
-    .max(2048)
-    .regex(/^https?:\/\/[^\s]+\/d2l\/le\/calendar\/feed\/[^\s]+$/i, "Not a Brightspace feed URL"),
+  icsUrl: z.string().trim().min(1).max(2048),
 });
 
 type CourseRow = { code: string | null; name: string };
@@ -46,35 +45,22 @@ export const getCalendarSource = createServerFn({ method: "GET" })
 export const saveCalendarSource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => icsUrlSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const encryptedUrl = encryptIcsUrl(data.icsUrl);
-    const { data: existing, error: readError } = await supabase
+  .handler(async ({ data, context }): Promise<SyncResult> => {
+    if (!isAllowedFeedUrl(data.icsUrl)) return { status: "invalid_url" };
+
+    // Students have no direct write grant on calendar_sources (CRU-23), so
+    // this is the only write path. user_id comes from the verified session.
+    const { data: saved, error } = await supabaseAdmin
       .from("calendar_sources")
+      .upsert(
+        { user_id: context.userId, ics_url_encrypted: encryptIcsUrl(data.icsUrl) },
+        { onConflict: "user_id" },
+      )
       .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (readError) throw new Error(readError.message);
+      .single();
+    if (error) throw new Error(error.message);
 
-    let calendarSourceId: string;
-    if (existing) {
-      const { error } = await supabase
-        .from("calendar_sources")
-        .update({ ics_url_encrypted: encryptedUrl })
-        .eq("id", existing.id);
-      if (error) throw new Error(error.message);
-      calendarSourceId = existing.id;
-    } else {
-      const { data: created, error } = await supabase
-        .from("calendar_sources")
-        .insert({ user_id: userId, ics_url_encrypted: encryptedUrl })
-        .select("id")
-        .single();
-      if (error) throw new Error(error.message);
-      calendarSourceId = created.id;
-    }
-
-    return runCalendarSync(calendarSourceId);
+    return runCalendarSync(saved.id);
   });
 
 /**
