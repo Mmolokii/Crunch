@@ -18,6 +18,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 import { runCalendarSync, type SyncResult } from "./calendar-sync";
 import { isAuthorizedCronRequest, mapWithConcurrency } from "./cron-auth";
+import { needsAttention, summariseRun, SYNC_RUN_RETENTION_DAYS, type RunSummary } from "./sync-run";
 
 type RowResult = {
   calendarSourceId: string;
@@ -36,9 +37,17 @@ export async function handleNightlySync(request: Request): Promise<Response> {
     });
   }
 
+  const startedAt = Date.now();
+  const runId = await startRun();
+
   const { data: sources, error } = await supabaseAdmin.from("calendar_sources").select("id");
   if (error) {
     console.error(`[cron-sync] listing sources failed: ${error.message}`);
+    await finishRun(
+      runId,
+      summariseRun([{ calendarSourceId: "(listing sources)", status: "error" }]),
+      startedAt,
+    );
     return new Response(JSON.stringify({ error: "Could not list calendar sources" }), {
       status: 500,
       headers: { "content-type": "application/json" },
@@ -65,19 +74,57 @@ export async function handleNightlySync(request: Request): Promise<Response> {
     },
   );
 
-  const summary = {
-    total: results.length,
-    ok: results.filter((r) => r.result.status === "ok").length,
-    failed: results
-      .filter((r) => r.result.status !== "ok")
-      .map((r) => ({
-        calendarSourceId: r.calendarSourceId,
-        status: r.result.status,
-      })),
-  };
+  const summary = summariseRun(
+    results.map((r) => ({ calendarSourceId: r.calendarSourceId, status: r.result.status })),
+  );
+  await finishRun(runId, summary, startedAt);
 
   return new Response(JSON.stringify({ summary, results }), {
     status: 200,
     headers: { "content-type": "application/json" },
   });
+}
+
+// The run log must never stop or fail the sync itself, so these only log
+// their own errors.
+
+async function startRun(): Promise<string | null> {
+  const { data, error } = await supabaseAdmin.from("sync_runs").insert({}).select("id").single();
+  if (error) {
+    console.error(`[cron-sync] couldn't start the run log: ${error.message}`);
+    return null;
+  }
+  return data.id;
+}
+
+async function finishRun(runId: string | null, summary: RunSummary, startedAt: number) {
+  if (needsAttention(summary)) {
+    // Picked up by alerting once an email provider is set up (CRU-27); until
+    // then it is the line to search for in Vercel's function logs.
+    console.error(
+      `[cron-sync] ATTENTION: ${summary.failed} of ${summary.total} calendars failed to sync`,
+      summary.failures,
+    );
+  }
+  if (!runId) return;
+
+  const { error } = await supabaseAdmin
+    .from("sync_runs")
+    .update({
+      finished_at: new Date().toISOString(),
+      total: summary.total,
+      ok: summary.ok,
+      failed: summary.failed,
+      failures: summary.failures,
+      duration_ms: Date.now() - startedAt,
+    })
+    .eq("id", runId);
+  if (error) console.error(`[cron-sync] couldn't complete the run log: ${error.message}`);
+
+  const cutoff = new Date(Date.now() - SYNC_RUN_RETENTION_DAYS * 86_400_000).toISOString();
+  const { error: pruneError } = await supabaseAdmin
+    .from("sync_runs")
+    .delete()
+    .lt("started_at", cutoff);
+  if (pruneError) console.error(`[cron-sync] couldn't prune old runs: ${pruneError.message}`);
 }
