@@ -21,11 +21,13 @@ jobs:
       - name: Lint
         run: bun run lint
 
-      - name: Type-check
-        run: bun run typecheck
-
       - name: Unit tests
         run: bun run test
 
       - name: Build
         run: bun run build
+
+      # After the build: the route tree (src/routeTree.gen.ts) is generated
+      # by it and isn't committed.
+      - name: Type-check
+        run: bun run typecheck
