@@ -3,7 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { handleNightlySync } from "./lib/cron-sync";
-import { withSecurityHeaders } from "./lib/security-headers";
+import { createNonce, withNonceHeader, withSecurityHeaders } from "./lib/security-headers";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -48,7 +48,10 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
-    return withSecurityHeaders(await handle(request, env, ctx));
+    // One nonce per request: in the CSP header, and handed to the router via a
+    // request header so it can stamp the same value on its inline scripts.
+    const nonce = createNonce();
+    return withSecurityHeaders(await handle(withNonceHeader(request, nonce), env, ctx), nonce);
   },
 };
 

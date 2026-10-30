@@ -2,11 +2,20 @@
  * Security headers for every response the server renders (CRU-29). Applied in
  * src/server.ts, the one place every non-static request passes through.
  *
- * script-src keeps 'unsafe-inline' because TanStack Start's SSR streams inline
- * hydration scripts and this version has no nonce support wired up. The policy
- * still blocks scripts from any other origin, framing, plugins, <base> hijacking
- * and form posts or fetches to anywhere but this app and its Supabase project.
+ * Inline scripts are allowed only with this response's nonce (CRU-39).
+ * server.ts makes a fresh nonce per request and the router stamps it on every
+ * inline script TanStack Start renders (see src/router.tsx), so an injected
+ * <script> without it is refused. style-src keeps 'unsafe-inline': React style
+ * attributes and the chart component's <style> need it, and nonces can't cover
+ * style attributes.
  */
+import { randomBytes } from "node:crypto";
+
+import { CSP_NONCE_HEADER } from "./csp-nonce";
+
+export function createNonce(): string {
+  return randomBytes(16).toString("base64");
+}
 
 function supabaseOrigin(): string | null {
   const raw = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
@@ -18,11 +27,15 @@ function supabaseOrigin(): string | null {
   }
 }
 
-export function contentSecurityPolicy(): string {
+export function contentSecurityPolicy(nonce: string): string {
   const supabase = supabaseOrigin();
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    // Vite's dev server injects its own inline scripts (React Refresh, HMR)
+    // without our nonce, so local development keeps 'unsafe-inline'.
+    process.env["NODE_ENV"] === "development"
+      ? "script-src 'self' 'unsafe-inline'"
+      : `script-src 'self' 'nonce-${nonce}'`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob:",
@@ -35,9 +48,9 @@ export function contentSecurityPolicy(): string {
   ].join("; ");
 }
 
-export function securityHeaders(): Record<string, string> {
+export function securityHeaders(nonce: string): Record<string, string> {
   return {
-    "Content-Security-Policy": contentSecurityPolicy(),
+    "Content-Security-Policy": contentSecurityPolicy(nonce),
     "X-Frame-Options": "DENY",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -47,10 +60,17 @@ export function securityHeaders(): Record<string, string> {
 }
 
 /** Returns the response with the security headers set (a copy, since fetch Responses can have immutable headers). */
-export function withSecurityHeaders(response: Response): Response {
+export function withSecurityHeaders(response: Response, nonce: string): Response {
   const secured = new Response(response.body, response);
-  for (const [name, value] of Object.entries(securityHeaders())) {
+  for (const [name, value] of Object.entries(securityHeaders(nonce))) {
     secured.headers.set(name, value);
   }
   return secured;
+}
+
+/** The request as handed to TanStack Start, carrying this request's nonce in place of any client-sent value. */
+export function withNonceHeader(request: Request, nonce: string): Request {
+  const headers = new Headers(request.headers);
+  headers.set(CSP_NONCE_HEADER, nonce);
+  return new Request(request, { headers });
 }
