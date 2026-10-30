@@ -142,7 +142,7 @@ function Onboarding() {
                   setUrl(e.target.value);
                   if (state !== "url") setState("url");
                 }}
-                placeholder="https://brightspace.myemeris.edu.za/d2l/le/calendar/feed/…"
+                placeholder="https://mystudies.iie.edu.za/d2l/le/calendar/feed/…"
                 aria-invalid={state === "invalid"}
               />
             </div>

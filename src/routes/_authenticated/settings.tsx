@@ -185,7 +185,7 @@ function SettingsPage() {
               id="feed"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://brightspace.myemeris.edu.za/d2l/le/calendar/feed/…"
+              placeholder="https://mystudies.iie.edu.za/d2l/le/calendar/feed/…"
             />
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
