@@ -14,6 +14,10 @@
  *        TEST_STUDENT_B_PASSWORD=...
  *      Student A needs at least one synced course with at least one event.
  *   2. Run:  bun --env-file=.env.test scripts/adversarial-test-matrix.ts
+ *      Add --signup-probe to also run check 20 (see its comment first).
+ *
+ * Checks 17–20 cover the CRU-23/24/25 fixes and only pass once those
+ * migrations are applied (and, for 20, the auth hook is enabled).
  *
  * Prints PASS/FAIL per check with the evidence (error message or row count)
  * and exits non-zero on any failure.
@@ -270,6 +274,59 @@ async function main() {
   ] as const) {
     r = await b.client.from(table).update(patch).eq("user_id", a.userId).select("user_id");
     report(16, `RLS: B updates A's ${table} → 0 rows`, !!r.error || isEmpty(r), describe(r));
+  }
+
+  // 17. CRU-23: no direct writes to calendar_sources, even to your own row —
+  // saveCalendarSource is the only write path, so its URL check can't be skipped.
+  r = await b.client
+    .from("calendar_sources")
+    .update({ ics_url_encrypted: "https://example.com/d2l/le/calendar/feed/cru-15-probe" })
+    .eq("user_id", b.userId)
+    .select("id");
+  report(
+    17,
+    "CRU-23: B writes own calendar_sources row directly → refused",
+    isDenied(r),
+    describe(r),
+  );
+
+  // 18–19. CRU-24: the lecturer allow-list is invisible to students, and
+  // the test accounts (not allow-listed) hold the student role.
+  r = await b.client.from("lecturer_allowlist").select("email");
+  report(18, "CRU-24: B reads lecturer_allowlist → refused", !!r.error || isEmpty(r), describe(r));
+  for (const [label, who] of [
+    ["A", a],
+    ["B", b],
+  ] as const) {
+    const { data: row } = await who.client
+      .from("users")
+      .select("role")
+      .eq("id", who.userId)
+      .single();
+    report(
+      19,
+      `CRU-24: ${label}'s stored role is 'student'`,
+      row?.role === "student",
+      `role = '${row?.role}'`,
+    );
+  }
+
+  // 20. CRU-25 (opt-in): Supabase Auth itself refuses a non-university email.
+  // Opt-in because, if the hook is NOT enabled, this really creates an auth
+  // user and sends a confirmation email to the reserved example.com domain.
+  if (process.argv.includes("--signup-probe")) {
+    const { data: signup, error: signupError } = await anon.auth.signUp({
+      email: `crunch-probe-${Date.now()}@example.com`,
+      password: `probe-${crypto.randomUUID()}`,
+    });
+    report(
+      20,
+      "CRU-25: signup with a non-university email → refused by the auth hook",
+      !!signupError,
+      signupError
+        ? `error: ${signupError.message}`
+        : `ACCOUNT CREATED (${signup.user?.id}) — enable the hook and delete this user`,
+    );
   }
 
   // Restore A's hours (completed_at can't be cleared — see header)
