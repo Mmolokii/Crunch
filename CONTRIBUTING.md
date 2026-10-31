@@ -39,6 +39,18 @@ Unit tests live next to the code as `*.test.ts` and run with Bun's test runner (
 
 `scripts/adversarial-test-matrix.ts` checks row level security and the database functions against a real project using two student accounts; see its header for setup. Run it after any change to policies, grants or `SECURITY DEFINER` functions.
 
+## Keeping docs current
+
+Docs live in the repo and change in the same pull request as the behaviour they describe. A reviewer should ask for the doc change the same way they'd ask for a test. The map of what lives where is [docs/README.md](docs/README.md).
+
+- **Changed how something works?** Update the doc that describes it: the [architecture overview](docs/architecture/overview.md), the [data model](docs/architecture/data-model.md), the [runbook](docs/runbook.md), the README's environment table, or `AGENTS.md`.
+- **Made or reversed a significant decision?** Add an ADR (see [docs/adr/README.md](docs/adr/README.md)). Never rewrite an accepted ADR; supersede it.
+- **Changed the schema?** Update the data model and regenerate `src/integrations/supabase/types.ts` in the same PR.
+- **New env var?** Add it to `.env.example` and the README table.
+- **Found a doc that's wrong?** Fix it in your PR, or file a Linear issue if it's bigger.
+
+Each doc names an owner and a "last reviewed" date. At the start of each semester, the owners walk through their docs (a recurring Linear issue), and the runbook is also checked after every incident. A new contributor's first task is to follow the setup steps and fix whatever was unclear.
+
 ## Reporting security issues
 
 Don't open a public issue. See [SECURITY.md](SECURITY.md).

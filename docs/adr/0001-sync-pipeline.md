@@ -1,6 +1,6 @@
 # ADR-0001: Calendar sync pipeline architecture
 
-**Status:** Accepted
+**Status:** Accepted; partly superseded by [ADR-0002](0002-sync-removes-stale-events.md) (stale events, bulk upserts). The addenda below are kept as the historical record.
 **Date:** 2026-09-16
 **Deciders:** Mmoloki Kgololosego, Tshiamo Aphane
 
