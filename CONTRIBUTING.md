@@ -4,7 +4,7 @@ Thanks for helping. This covers how to get set up and how a change gets to produ
 
 ## Setup
 
-Follow **Getting started** in the [README](README.md): Bun, Node 22 (`nvm use`), `bun install`, then copy `.env.example` to `.env`. Ask a maintainer for the values; secrets are never committed or shared in chat.
+Follow [docs/guides/local-setup.md](docs/guides/local-setup.md): Bun, Node 22, Docker, then `bun run db:start`, `bun run db:env` and `bun run dev`. You work against a local database with fictional seed data, so you don't need production access or any secrets. Production secrets are never committed or shared in chat.
 
 ## Making a change
 

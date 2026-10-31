@@ -4,11 +4,12 @@ Start here. Each document has one job; if you can't find something, it probably 
 
 ## New to the codebase
 
-1. [README](../README.md): what Crunch is, the stack, getting it running.
-2. [Architecture overview](architecture/overview.md): how the pieces fit, how a request flows, the sync, scoring.
-3. [Data model](architecture/data-model.md): tables, access rules, database functions.
-4. [AGENTS.md](../AGENTS.md): conventions every change must follow, and the security model.
-5. [CONTRIBUTING.md](../CONTRIBUTING.md): branches, reviews, tests, migrations, and how docs are kept current.
+1. [README](../README.md): what Crunch is and the stack.
+2. [Local setup](guides/local-setup.md): run it on your machine with seed data, no production access needed.
+3. [Architecture overview](architecture/overview.md): how the pieces fit, how a request flows, the sync, scoring.
+4. [Data model](architecture/data-model.md): tables, access rules, database functions.
+5. [AGENTS.md](../AGENTS.md): conventions every change must follow, and the security model.
+6. [CONTRIBUTING.md](../CONTRIBUTING.md): branches, reviews, tests, migrations, and how docs are kept current.
 
 ## Reference
 
@@ -34,4 +35,4 @@ Start here. Each document has one job; if you can't find something, it probably 
 
 ## Coming next
 
-Tracked in CRU-50: a local setup guide and seed data (after the staging decision, CRU-34), a testing guide, a migrations guide, a privacy and retention page (after the POPIA decision, CRU-38), and a glossary.
+Tracked in CRU-50: a testing guide, a migrations guide, a privacy and retention page (after the POPIA decision, CRU-38), and a glossary.
