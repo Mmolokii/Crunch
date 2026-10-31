@@ -112,6 +112,46 @@ describe("nonces", () => {
     expect(handed.method).toBe("POST");
     expect(await handed.text()).toBe("payload");
   });
+
+  test("accepts a request that isn't the runtime's own Request class (the dev server's)", async () => {
+    // Mimics the dev server handing over its own Request implementation: the
+    // right shape, but under Node `new Request(request)` can't copy it (Bun can,
+    // so this checks the fix's behaviour rather than reproducing the throw).
+    class ForeignRequest {
+      #inner: Request;
+      constructor(url: string, init?: RequestInit) {
+        this.#inner = new Request(url, init);
+      }
+      get url() {
+        return this.#inner.url;
+      }
+      get method() {
+        return this.#inner.method;
+      }
+      get headers() {
+        return this.#inner.headers;
+      }
+      get body() {
+        return this.#inner.body;
+      }
+      get redirect() {
+        return this.#inner.redirect;
+      }
+      get signal() {
+        return this.#inner.signal;
+      }
+    }
+    const foreign = new ForeignRequest("https://crunch.test/_serverFn/x", {
+      method: "POST",
+      headers: { "content-type": "application/json", [CSP_NONCE_HEADER]: "forged" },
+      body: '{"a":1}',
+    }) as unknown as Request;
+    const handed = withNonceHeader(foreign, "server-made");
+    expect(handed.headers.get(CSP_NONCE_HEADER)).toBe("server-made");
+    expect(handed.headers.get("content-type")).toBe("application/json");
+    expect(handed.method).toBe("POST");
+    expect(await handed.text()).toBe('{"a":1}');
+  });
 });
 
 describe("development", () => {

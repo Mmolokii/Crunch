@@ -68,9 +68,28 @@ export function withSecurityHeaders(response: Response, nonce: string): Response
   return secured;
 }
 
-/** The request as handed to TanStack Start, carrying this request's nonce in place of any client-sent value. */
+/**
+ * The request as handed to TanStack Start, carrying this request's nonce in place of any client-sent value.
+ *
+ * Built from the URL and explicit options rather than `new Request(request, …)`: in `bun run dev`
+ * the incoming request is the dev server's own Request class, not the runtime's, and copying one
+ * of those fails ("Cannot read private member #state"). Vercel hands over a native Request, so
+ * production never hit it.
+ */
 export function withNonceHeader(request: Request, nonce: string): Request {
   const headers = new Headers(request.headers);
   headers.set(CSP_NONCE_HEADER, nonce);
-  return new Request(request, { headers });
+  const hasBody = request.method !== "GET" && request.method !== "HEAD" && request.body !== null;
+  const init: RequestInit & { duplex?: "half" } = {
+    method: request.method,
+    headers,
+    redirect: request.redirect,
+  };
+  if (hasBody) {
+    init.body = request.body;
+    // Node requires this when the body is a stream.
+    init.duplex = "half";
+  }
+  if (request.signal instanceof AbortSignal) init.signal = request.signal;
+  return new Request(request.url, init);
 }
