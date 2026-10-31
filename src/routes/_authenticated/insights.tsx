@@ -57,7 +57,7 @@ function Insights() {
       <PageHeading
         eyebrow="Your semester"
         title="Insights"
-        subtitle="A rules-based model, tuned by the hours you log. Not a black box — every number below traces back to your own calendar and your own logging."
+        subtitle="Estimates come from simple rules by assessment type; the hours you log replace them item by item. Not a black box — every number below traces back to your own calendar and your own logging."
       />
 
       <Container className="flex flex-col gap-5">

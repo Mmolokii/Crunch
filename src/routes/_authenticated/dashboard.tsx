@@ -126,8 +126,9 @@ function Dashboard() {
         )}
 
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Estimates come from a rules-based model using assessment type and weighting, tuned by the
-          hours you log yourself. They are guidance, not a prediction.
+          Estimates come from simple rules based on each assessment's type. Where you've logged the
+          hours something actually took, your number replaces the estimate. They are guidance, not a
+          prediction.
         </p>
       </Container>
     </AppShell>
