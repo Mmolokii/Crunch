@@ -68,6 +68,10 @@ Rotating the JWT signing key in Supabase (Project Settings → JWT Keys) invalid
 
 Supabase → Authentication → Users → the user → **Delete user**. Their rows in `users`, `calendar_sources`, `courses`, `events`, `week_scores` and `notification_preferences` are removed through the foreign-key cascades from `auth.users`.
 
+### Remove a lecturer's access
+
+`bun --env-file=.env scripts/lecturer.ts remove name@myemeris.edu.za --yes`. It unlinks their courses, demotes them to student and removes them from the allow-list, so the lecturer functions return nothing from their next request. To block the account completely, also delete the user as above.
+
 ## Checking the nightly sync
 
 Every nightly run writes a row to `sync_runs` (kept for 90 days). In the Supabase SQL editor:
