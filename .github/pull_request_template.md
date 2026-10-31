@@ -16,6 +16,8 @@ Fixes CRU-
 - [ ] Migrations are additive, and include their RLS policies and `GRANT`/`REVOKE`
 - [ ] Privileged checks live in Postgres or server functions, never in the browser
 - [ ] No secrets, feed URLs or personal data in code, logs or this PR
+- [ ] Docs updated in this PR, or not needed because: <!-- one line -->
+- [ ] A decision that is new, changed or reversed has an ADR in `docs/adr/` (or none was made)
 
 ## After merging
 
