@@ -12,7 +12,7 @@ Students don't usually find out a week is going to be brutal until they're in it
 
 ## How it works
 
-- **Students** connect their Brightspace calendar subscription link once. Crunch estimates effort per assessment by type, groups everything into weeks, and scores each week Light through Brutal. Logging actual hours after a deadline passes sharpens future estimates for that student specifically — nothing is shared across accounts.
+- **Students** connect their Brightspace calendar subscription link once. Crunch estimates effort per assessment by type, groups everything into weeks, and scores each week Light through Brutal. After a deadline, a student can log the hours it actually took; that number replaces Crunch's estimate for that item in their week totals, and Insights shows where estimates ran high or low. Logged hours are private to the student and never shared across accounts.
 - **Lecturers** see cohort-level workload only: an aggregate heatmap of their own course, hidden entirely below a minimum cohort size, with no per-student drill-down. They can also set due dates directly, which are marked lecturer-set and survive every future calendar re-sync.
 - Every screen is driven by live data with real empty and error states — there is no mock or placeholder data anywhere in the app.
 
