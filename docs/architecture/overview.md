@@ -138,7 +138,7 @@ Two or more high-stakes items from different courses due on the same day (UTC) a
 
 Lecturers only ever see aggregates, through `SECURITY DEFINER` functions: `lecturer_courses`, `lecturer_cohort_weeks`, `lecturer_due_dates`, `lecturer_upsert_due_date` and `lecturer_delete_due_date`. A cohort heatmap returns nothing until at least `LECTURER_MIN_COHORT` (default 8) distinct students share the course ([ADR-0008](../adr/0008-cohort-minimum.md)).
 
-> **Known gap.** A lecturer sees a course only where `courses.lecturer_id` is their user id, and nothing in the app sets that link yet. It has to be set by hand in SQL for at least one student's row of the course. After that, `lecturer_upsert_due_date` fills it in for other students in the same course and school. Tracked in CRU-50 and needed for the lecturer test (CRU-17).
+A lecturer sees a course only where `courses.lecturer_id` is their user id. Nothing in the app sets that link: during the pilot a maintainer runs `scripts/lecturer.ts` ([ADR-0011](../adr/0011-lecturer-onboarding.md), and the steps in [data-model.md](data-model.md#how-a-lecturer-gets-linked-to-a-course)).
 
 ## Environments and deployment
 

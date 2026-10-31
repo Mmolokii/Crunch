@@ -92,17 +92,26 @@ All are `SECURITY DEFINER` with a fixed `search_path`, revoked from `PUBLIC` and
 
 ### How a lecturer gets linked to a course
 
-Lecturer functions only see courses where `courses.lecturer_id` is the lecturer's own id. **Nothing in the app sets the first link.** For a new lecturer:
+Lecturer functions only see courses where `courses.lecturer_id` is the lecturer's own id, and nothing in the app sets that link. During the pilot a maintainer does it with `scripts/lecturer.ts` ([ADR-0011](../adr/0011-lecturer-onboarding.md)):
 
-1. Add their address to `lecturer_allowlist` before they sign up, so `complete_signup` makes them a lecturer.
-2. After they've signed up, set `lecturer_id` on at least one student's `courses` row for each of their courses, by hand in SQL (service role).
-3. From then on, `lecturer_upsert_due_date` links the rest of that course's students (same `code` and `school`) when the lecturer adds or edits a due date.
+```sh
+bun --env-file=.env scripts/lecturer.ts courses                      # codes and student counts
+bun --env-file=.env scripts/lecturer.ts add name@myemeris.edu.za \
+  --courses PROG6221 --note "IT nominated, expires 2027-01-31"       # dry run: prints the plan
+bun --env-file=.env scripts/lecturer.ts add … --yes                  # apply
+bun --env-file=.env scripts/lecturer.ts list                         # who has access to what
+bun --env-file=.env scripts/lecturer.ts remove name@myemeris.edu.za --yes
+```
 
-A proper way to do this (an admin step or a claim flow) is an open item in CRU-50.
+- `add` allow-lists the email. If they haven't signed up, `complete_signup` makes them a lecturer at first sign-in; run `add` again afterwards to link their courses. If they already signed up as a student, it promotes them.
+- Linking sets `lecturer_id` on every student's row for that exact course code. Rows already linked to a different lecturer are never overwritten; the script warns instead.
+- Students who join a course later aren't linked automatically. Run `add` again, or they're picked up the next time the lecturer adds or edits a due date (`lecturer_upsert_due_date` fills in rows with the same code and school).
+- `remove` unlinks their courses, demotes them to student and deletes them from the allow-list. Manual due dates they added stay on students' calendars.
+- It needs the service-role key, so it runs from a maintainer's machine only. Record every run on the CRU-17 issue.
 
 ## Changing the schema
 
-- One migration per change in `supabase/migrations/`, named `YYYYMMDDHHMMSS_cru_<n>_<slug>.sql`. Older files have UUID names from the original scaffold.
+- One migration per change in `supabase/migrations/`, named `YYYYMMDDHHMMSS_cru_<n>_<slug>.sql`. History starts at `00000000000000_baseline.sql`; the original August files are in `supabase/migrations-archive/`.
 - Additive only, with the RLS policies and `GRANT`/`REVOKE` in the same file ([AGENTS.md](../../AGENTS.md)).
 - After any change to policies, grants or functions, run `scripts/adversarial-test-matrix.ts` (see [CONTRIBUTING.md](../../CONTRIBUTING.md#tests)).
-- Regenerate `src/integrations/supabase/types.ts` and update this page in the same pull request. The generated types are currently behind: they lack `lecturer_allowlist` and `hook_require_university_email`.
+- Test it on a local database (`bun run db:start`, then `bun run db:reset` after each change), regenerate the types with `bun run db:types`, and update this page, all in the same pull request. The `schema` CI job fails if the migrations don't build a database or the types don't match.
