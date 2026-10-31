@@ -45,3 +45,6 @@ src/routeTree.gen.ts
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Supabase CLI local state
+supabase/.branches/

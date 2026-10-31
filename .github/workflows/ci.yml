@@ -31,3 +31,29 @@ jobs:
       # by it and isn't committed.
       - name: Type-check
         run: bun run typecheck
+
+  # Builds a fresh database from supabase/migrations alone, so a migration
+  # that can't replay from scratch fails here (staging and local setup depend
+  # on that), then checks the committed generated types match it.
+  schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build a database from the migrations
+        run: bunx supabase@2.120.0 db start
+
+      - name: Generated types match the migrations
+        run: |
+          bun run db:types
+          git diff --exit-code src/integrations/supabase/types.ts || {
+            echo "::error::src/integrations/supabase/types.ts is out of date. Run 'bun run db:start && bun run db:types' and commit the result."
+            exit 1
+          }

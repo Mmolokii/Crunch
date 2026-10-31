@@ -26,6 +26,13 @@ Follow **Getting started** in the [README](README.md): Bun, Node 22 (`nvm use`),
 - CODEOWNERS requests a review automatically. Database migrations, auth and anything touching the service-role client get the closest look.
 - Merging deploys to production on Vercel. Database migrations are **not** applied automatically: whoever merges applies them to production and records them, as described in the PR.
 
+## Database changes
+
+- Add one migration per change to `supabase/migrations/`, named `YYYYMMDDHHMMSS_cru_<n>_<slug>.sql`, following the rules in [AGENTS.md](AGENTS.md#database-changes).
+- **Test it locally first.** `bun run db:start` (Docker) builds a fresh database from every migration; `bun run db:reset` rebuilds it after you add one. If your migration can't apply cleanly from scratch, the `schema` CI job will fail too.
+- **Regenerate the types in the same PR:** `bun run db:types` rewrites `src/integrations/supabase/types.ts` from the local database. The `schema` CI job fails if the committed file doesn't match the migrations. Don't edit `types.ts` by hand.
+- Production migrations are applied by hand after merging, with a backup first (see the PR template's "After merging").
+
 ## Tests
 
 Unit tests live next to the code as `*.test.ts` and run with Bun's test runner (`bun run test`). Keep pure logic (parsing, scoring, validation) in modules with no I/O so it can be tested this way.

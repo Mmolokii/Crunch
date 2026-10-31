@@ -11,7 +11,11 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
-    "test": "bun test src"
+    "test": "bun test src",
+    "db:start": "bunx supabase@2.120.0 start -x studio,imgproxy,mailpit,realtime,storage-api,edge-runtime,logflare,vector,supavisor",
+    "db:stop": "bunx supabase@2.120.0 stop",
+    "db:reset": "bunx supabase@2.120.0 db reset",
+    "db:types": "bunx supabase@2.120.0 gen types typescript --local --schema public > src/integrations/supabase/types.ts && prettier --write src/integrations/supabase/types.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"
