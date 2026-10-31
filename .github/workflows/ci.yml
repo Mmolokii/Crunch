@@ -32,9 +32,10 @@ jobs:
       - name: Type-check
         run: bun run typecheck
 
-  # Builds a fresh database from supabase/migrations alone, so a migration
-  # that can't replay from scratch fails here (staging and local setup depend
-  # on that), then checks the committed generated types match it.
+  # Builds a fresh database from supabase/migrations alone, then loads
+  # supabase/seed.sql, so a migration that can't replay from scratch or a
+  # broken seed fails here (staging and local setup depend on both). Then
+  # checks the committed generated types match the migrations.
   schema:
     runs-on: ubuntu-latest
     steps:

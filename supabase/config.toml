@@ -1,1 +1,23 @@
 project_id = "xnlzbtyitbsgxzvugthy"
+
+# Local development only (`bun run db:start`); these settings never touch the
+# hosted project. They mirror production where it matters for behaviour.
+
+[auth]
+site_url = "http://localhost:8080"
+additional_redirect_urls = ["http://localhost:8080/**"]
+
+[auth.email]
+# Production confirms by email. Locally there's no mail server running, so
+# accounts are usable straight after sign-up.
+enable_confirmations = false
+
+# Same Before User Created hook as production (ADR-0006): only
+# @myemeris.edu.za addresses can sign up.
+[auth.hook.before_user_created]
+enabled = true
+uri = "pg-functions://postgres/public/hook_require_university_email"
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
