@@ -7,7 +7,8 @@ Crunch is a TanStack Start app on Supabase. A few conventions matter more here t
 - **Never trust the client for anything privileged.** Role, ownership, and cohort thresholds are enforced in Postgres, not in route components or server function handlers.
 - All privileged reads/writes go through `src/lib/crunch.functions.ts` server functions, each behind the `requireSupabaseAuth` middleware (`src/integrations/supabase/auth-middleware.ts`), which verifies the caller's Supabase session server-side before any query runs.
 - Anything that needs an ownership check beyond RLS (logging hours, lecturer due-date edits, cohort aggregation) is a `SECURITY DEFINER` Postgres function in `supabase/migrations/`, with the ownership check written into the function body — not assumed from the caller. Follow that pattern for new privileged writes rather than relying on RLS alone.
-- `src/integrations/supabase/client.server.ts` exposes the service-role client, which bypasses RLS entirely. It's for trusted server-only operations (signup domain/role enforcement, the sync trigger). Never import it into a route file or anything that ships to the client bundle.
+- `src/integrations/supabase/client.server.ts` exposes the service-role client, which bypasses RLS entirely. It's for trusted server-only operations: the calendar sync (`calendar-sync.ts`), the nightly run and its `sync_runs` log (`cron-sync.ts`), and deleting a student's own account (`deleteMyAccount`). Never import it into a route file or anything that ships to the client bundle.
+- Sign-up rules don't use it: the university-only email check is the `hook_require_university_email` Supabase Auth hook, and the role comes from `complete_signup`, which grants `lecturer` only to addresses in `lecturer_allowlist`.
 
 ## Database changes
 

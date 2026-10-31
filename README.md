@@ -70,7 +70,7 @@ bun run dev
 | `ICS_ALLOWED_HOSTS`                                          | Feed URL allow-list (`lib/ics-url.ts`)                 | Comma-separated hosts the server may fetch feeds from; defaults to `mystudies.iie.edu.za` |
 | `RESEND_API_KEY` / `SYNC_ALERT_TO` / `SYNC_ALERT_FROM`       | Nightly sync failure emails (`lib/sync-alert.ts`)      | Optional; alerts are off until the key and a recipient are set                            |
 
-Database schema and RLS policies live entirely in `supabase/migrations/` — apply them against your Supabase project with the Supabase CLI before running the app.
+Database schema and RLS policies live entirely in `supabase/migrations/`. For a local database built from them (needs Docker), run `bun run db:start`; it prints a local URL and keys you can put in `.env`. See [CONTRIBUTING.md](CONTRIBUTING.md#database-changes).
 
 ### Scripts
 
@@ -81,6 +81,10 @@ bun run lint        # eslint
 bun run test        # unit tests (bun test)
 bun run typecheck   # tsc for app and tests; run after a build, which generates the route tree
 bun run format      # prettier --write
+bun run db:start    # local Supabase from supabase/migrations (Docker)
+bun run db:types    # regenerate src/integrations/supabase/types.ts from it
+bun run db:reset    # rebuild the local database from scratch
+bun run db:stop     # stop it
 ```
 
 ## Project status
@@ -91,7 +95,7 @@ Still to do before inviting a full pilot cohort: production email (custom SMTP),
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, review and merge flow, and [AGENTS.md](AGENTS.md) for code conventions and the security model. To report a vulnerability, see [SECURITY.md](SECURITY.md).
+Start with [docs/README.md](docs/README.md) for the architecture, data model and decision records. See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, review and merge flow, and [AGENTS.md](AGENTS.md) for code conventions and the security model. To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## License
 

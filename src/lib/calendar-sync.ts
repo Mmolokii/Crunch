@@ -30,8 +30,9 @@ const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 /**
  * MVP effort/stakes defaults per canonical type. Brightspace's feed carries
- * no effort estimate, so these are a starting point, not a measurement —
- * logging actual hours after the fact is what sharpens them per student
+ * no effort estimate, so these are a starting point, not a measurement.
+ * When a student logs the hours an item actually took, that number replaces
+ * the estimate for that one item; these defaults themselves don't change
  * (see workload.ts / the "Log hours" flow).
  */
 const TYPE_DEFAULTS: Record<CanonicalEventType, { estimatedHours: number; isHighStakes: boolean }> =
