@@ -91,7 +91,7 @@ Still to do before inviting a full pilot cohort: production email (custom SMTP),
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, review and merge flow, and [AGENTS.md](AGENTS.md) for code conventions and the security model. To report a vulnerability, see [SECURITY.md](SECURITY.md).
+Start with [docs/README.md](docs/README.md) for the architecture, data model and decision records. See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, review and merge flow, and [AGENTS.md](AGENTS.md) for code conventions and the security model. To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## License
 
