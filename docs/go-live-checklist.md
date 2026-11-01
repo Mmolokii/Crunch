@@ -19,6 +19,7 @@ Each of these is a reason not to launch. None of them is code that is still bein
 - [ ] **Lecturer access approved by IT.** The address IT nominated is in `lecturer_allowlist`, with any expiry or conditions IT set recorded in the launch issue (Security Overview §12).
 - [ ] **Lecturer screens verified** (CRU-17) with that account against real cohort data: heatmap, minimum-cohort threshold, due-date management.
 - [ ] **Backups.** Either the project is on Supabase Pro (daily backups), or the team has agreed to manual dumps and a dump from the last 24 hours exists (runbook → Recovery).
+- [ ] **Restore drill.** A production dump has been restored with `scripts/restore-drill.sh` and logged in the runbook's drill log.
 - [ ] **POPIA** (CRU-38). The retention policy is decided and the Information Officer is named on the privacy page.
 - [ ] **University IT has reviewed the Security Overview** and any conditions they attached are met.
 
