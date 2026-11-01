@@ -1,12 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
 
 import { AppShell, Container, PageHeading } from "@/components/app/AppShell";
+import { CourseSwitcher } from "@/components/app/CourseSwitcher";
 import { LevelBadge } from "@/components/app/WorkloadBits";
 import { getCohortWeeks, getLecturerCourses } from "@/lib/crunch.functions";
+import { belowMinCohort, courseSearchSchema, selectCourse } from "@/lib/lecturer-course";
 import { levelFill, levelFor, weekRangeLabel } from "@/lib/workload";
 
 export const Route = createFileRoute("/_authenticated/lecturer/")({
+  validateSearch: (search) => courseSearchSchema.parse(search),
+  loaderDeps: ({ search }) => ({ course: search.course }),
   head: () => ({
     meta: [
       { title: "Cohort workload — Crunch for lecturers" },
@@ -24,22 +28,23 @@ export const Route = createFileRoute("/_authenticated/lecturer/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  loader: async () => {
+  loader: async ({ deps }) => {
     const courses = await getLecturerCourses();
-    const first = courses[0];
-    const cohort = first
-      ? await getCohortWeeks({ data: { code: first.code } })
+    const course = selectCourse(courses, deps.course);
+    const cohort = course
+      ? await getCohortWeeks({ data: { code: course.code } })
       : {
           minCohort: 8,
           weeks: [] as { weekStart: string; avgHours: number; studentCount: number }[],
         };
-    return { courses, course: first ?? null, cohort };
+    return { courses, course, cohort };
   },
   component: LecturerCohort,
 });
 
 function LecturerCohort() {
   const { courses, course, cohort } = Route.useLoaderData();
+  const navigate = useNavigate({ from: Route.fullPath });
   const max = Math.max(1, ...cohort.weeks.map((w) => w.avgHours));
 
   return (
@@ -64,20 +69,37 @@ function LecturerCohort() {
           </p>
         </div>
 
-        {courses.length === 0 ? (
+        {course ? (
+          <CourseSwitcher
+            courses={courses}
+            selected={course}
+            minCohort={cohort.minCohort}
+            onSelect={(code) => void navigate({ search: { course: code } })}
+          />
+        ) : null}
+
+        {!course ? (
           <section className="surface-card animate-rise rounded-2xl p-6">
             <h2 className="font-display text-lg font-semibold">No courses linked yet</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               Once your courses are linked to your lecturer account, cohort averages appear here.
             </p>
           </section>
-        ) : cohort.weeks.length === 0 ? (
+        ) : belowMinCohort(course, cohort.minCohort) ? (
           <section className="surface-card animate-rise rounded-2xl p-6">
             <h2 className="font-display text-lg font-semibold">Cohort too small to show</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               Crunch shows nothing at all until at least {cohort.minCohort} students on this course
               have connected a calendar feed — an average across a handful of students is close
-              enough to naming them.
+              enough to naming them. {course.code} has {course.studentCount} so far.
+            </p>
+          </section>
+        ) : cohort.weeks.length === 0 ? (
+          <section className="surface-card animate-rise rounded-2xl p-6">
+            <h2 className="font-display text-lg font-semibold">No due dates yet</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              None of the {course.studentCount} students on {course.code} has anything due yet.
+              Cohort averages appear here once their calendars have due dates in them.
             </p>
           </section>
         ) : (
@@ -116,6 +138,7 @@ function LecturerCohort() {
             Want to shift a deadline out of a heavy week?{" "}
             <Link
               to="/lecturer/due-dates"
+              search={{ course: course.code }}
               className="text-primary underline-offset-4 hover:underline"
             >
               Manage your due dates
