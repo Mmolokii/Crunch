@@ -103,4 +103,4 @@ Every morning, one developer:
 - [ ] Scans Vercel logs for `ATTENTION` lines and Supabase Auth logs for unusual activity.
 - [ ] Reads the problem-report channel and files anything real in Linear.
 
-At the end of week one, write a short review in the launch issue covering signups versus invites, sync success rate, problems reported, and what to change before inviting more students.
+At the end of week one, run the runbook's **Pilot metrics** query and write a short review in the launch issue covering signups versus invites, sync success rate, problems reported, and what to change before inviting more students.
