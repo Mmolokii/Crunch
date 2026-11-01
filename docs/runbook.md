@@ -104,6 +104,66 @@ Three things email the team; none needs anyone to look first.
 
 None of them receives student data: Healthchecks gets counts (`total=… ok=… failed=…`), UptimeRobot only our public URLs.
 
+## Pilot metrics
+
+How the pilot is going, per week, from data Crunch already has (CRU-49). No analytics tool, no third party: counts only, run in the Supabase SQL editor by the team, never exposed to students. Use it for the end-of-week-one review in the go-live checklist, then weekly.
+
+```sql
+-- Pilot metrics, one row per week (Monday, UTC). Counts only; run in the SQL editor.
+with weeks as (
+  select generate_series(
+    date_trunc('week', (select min(created_at) from public.users)),
+    date_trunc('week', now()),
+    interval '1 week'
+  ) as week
+),
+logins as (
+  select date_trunc('week', a.created_at) as week, u.role, count(distinct u.id) as n
+  from auth.audit_log_entries a
+  join public.users u on u.id::text = a.payload->>'actor_id'
+  where a.payload->>'action' = 'login'
+  group by 1, 2
+),
+syncs as (
+  select date_trunc('week', started_at) as week, sum(ok) as ok, sum(total) as total,
+         count(*) as runs, count(*) filter (where finished_at is null) as unfinished
+  from public.sync_runs group by 1
+)
+select
+  w.week::date as week_of,
+  (select count(*) from public.users u
+     where u.role = 'student' and u.created_at < w.week + interval '1 week') as students_total,
+  (select count(*) from public.users u
+     where u.role = 'student' and date_trunc('week', u.created_at) = w.week) as new_students,
+  (select round(100.0 * count(distinct c.user_id) / nullif(count(distinct u.id), 0))
+     from public.users u
+     left join public.calendar_sources c
+       on c.user_id = u.id and c.created_at < w.week + interval '1 week'
+     where u.role = 'student' and u.created_at < w.week + interval '1 week') as pct_connected,
+  coalesce((select n from logins l where l.week = w.week and l.role = 'student'), 0) as active_students,
+  coalesce((select n from logins l where l.week = w.week and l.role = 'lecturer'), 0) as active_lecturers,
+  (select round(100.0 * s.ok / nullif(s.total, 0)) from syncs s where s.week = w.week) as pct_sync_ok,
+  (select s.runs || ' runs, ' || s.unfinished || ' unfinished' from syncs s where s.week = w.week) as sync_runs
+from weeks w
+order by w.week desc;
+
+-- Logged hours has no timestamp, so this one is to date, not per week.
+select
+  count(distinct u.id) filter (where e.actual_hours_logged is not null) as students_who_logged_hours,
+  count(distinct u.id) as students,
+  round(100.0 * count(distinct u.id) filter (where e.actual_hours_logged is not null)
+        / nullif(count(distinct u.id), 0)) as pct
+from public.users u
+left join public.courses c on c.user_id = u.id
+left join public.events e on e.course_id = c.id
+where u.role = 'student';
+```
+
+- **`active_students` / `active_lecturers`**: distinct people who signed in that week, from Supabase Auth's audit log. If these stay at 0 while people are clearly using the app, the audit log is turned off (Authentication → Settings).
+- **`pct_connected`**: students who had saved a calendar feed by the end of that week.
+- **`pct_sync_ok`**: share of calendars the nightly runs synced cleanly (`empty` counts as not OK here, so expect it lower between semesters).
+- **Invites** aren't recorded anywhere, so compare `students_total` with the number of invitations sent by hand.
+
 ## Notification
 
 Crunch handles personal information under South Africa's Protection of Personal Information Act (POPIA).
