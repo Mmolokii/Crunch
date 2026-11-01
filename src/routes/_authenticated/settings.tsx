@@ -272,10 +272,16 @@ function SettingsPage() {
             {notifications.map((n) => (
               <div key={n.key} className="flex items-start justify-between gap-6 py-4">
                 <div>
-                  <p className="text-sm font-medium">{n.label}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{n.hint}</p>
+                  <p id={`pref-${n.key}`} className="text-sm font-medium">
+                    {n.label}
+                  </p>
+                  <p id={`pref-${n.key}-hint`} className="mt-1 text-sm text-muted-foreground">
+                    {n.hint}
+                  </p>
                 </div>
                 <Switch
+                  aria-labelledby={`pref-${n.key}`}
+                  aria-describedby={`pref-${n.key}-hint`}
                   checked={prefs[n.key]}
                   disabled={savingPrefs}
                   onCheckedChange={(value) => void togglePref(n.key, value)}

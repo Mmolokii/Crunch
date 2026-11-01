@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 
 import { Logo } from "./Logo";
@@ -15,13 +15,23 @@ const nav = [
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
 
+  // Escape closes the mobile menu, as keyboard users expect.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
     <header className="sticky top-0 z-50">
       <div className="glass-panel border-x-0 border-t-0">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
           <Logo />
 
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
             {nav.map((item) => (
               <Link
                 key={item.to}
@@ -41,6 +51,7 @@ export function SiteHeader() {
             type="button"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
+            aria-controls="site-menu"
             onClick={() => setOpen((v) => !v)}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent md:hidden"
           >
@@ -49,8 +60,11 @@ export function SiteHeader() {
         </div>
 
         {open && (
-          <div className="animate-fade border-t border-border/60 px-5 pb-5 pt-3 md:hidden">
-            <nav className="flex flex-col">
+          <div
+            id="site-menu"
+            className="animate-fade border-t border-border/60 px-5 pb-5 pt-3 md:hidden"
+          >
+            <nav aria-label="Main" className="flex flex-col">
               {nav.map((item) => (
                 <Link
                   key={item.to}
