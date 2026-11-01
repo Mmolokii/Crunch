@@ -58,3 +58,29 @@ jobs:
             echo "::error::src/integrations/supabase/types.ts is out of date. Run 'bun run db:start && bun run db:types' and commit the result."
             exit 1
           }
+
+  # Runs the CRU-15 adversarial matrix (scripts/adversarial-test-matrix.ts)
+  # against a disposable local stack built from the migrations and the seed:
+  # two seed students attack each other's data through supabase-js with the
+  # anon key, the way a malicious client would. A policy, grant or SECURITY
+  # DEFINER change that opens a hole fails here, before it reaches production.
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Start the local stack (migrations + seed)
+        run: bun run db:start
+
+      - name: Point the test at it
+        run: bun run db:env
+
+      - name: Adversarial test matrix
+        run: bun run test:security

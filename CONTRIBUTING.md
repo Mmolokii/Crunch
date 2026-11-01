@@ -37,7 +37,7 @@ Follow [docs/guides/local-setup.md](docs/guides/local-setup.md): Bun, Node 22, D
 
 Unit tests live next to the code as `*.test.ts` and run with Bun's test runner (`bun run test`). Keep pure logic (parsing, scoring, validation) in modules with no I/O so it can be tested this way.
 
-`scripts/adversarial-test-matrix.ts` checks row level security and the database functions against a real project using two student accounts; see its header for setup. Run it after any change to policies, grants or `SECURITY DEFINER` functions.
+`scripts/adversarial-test-matrix.ts` attacks row level security and the database functions the way a malicious client would, as two student accounts using the anon key. CI's `security` job runs it on every PR against a local stack built from the migrations and the seed; run the same thing yourself with `bun run test:security` after `bun run db:start` and `bun run db:env`. Changes to policies, grants or `SECURITY DEFINER` functions should add a check for the new rule. After applying such a migration to production, run it there too (see the script's header for `.env.test`).
 
 ## Keeping docs current
 

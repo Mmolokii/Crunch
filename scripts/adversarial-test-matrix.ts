@@ -16,6 +16,11 @@
  *   2. Run:  bun --env-file=.env.test scripts/adversarial-test-matrix.ts
  *      Add --signup-probe to also run check 20 (see its comment first).
  *
+ * Locally and in CI (CRU-54): `bun run test:security` runs it with --local
+ * against the stack from `bun run db:start` + `bun run db:env`. --local signs
+ * in as the seed students (supabase/seed.sql) and refuses any non-local URL,
+ * so it can never touch a hosted project.
+ *
  * Checks 17–20 cover the CRU-23/24/25 fixes and only pass once those
  * migrations are applied (and, for 20, the auth hook is enabled).
  *
@@ -38,10 +43,24 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const url = process.env.SUPABASE_URL;
 const anonKey = process.env.SUPABASE_PUBLISHABLE_KEY;
-const accounts = {
-  A: [process.env.TEST_STUDENT_A_EMAIL, process.env.TEST_STUDENT_A_PASSWORD],
-  B: [process.env.TEST_STUDENT_B_EMAIL, process.env.TEST_STUDENT_B_PASSWORD],
-} as const;
+const local = process.argv.includes("--local");
+
+if (local && (!url || !["127.0.0.1", "localhost"].includes(new URL(url).hostname))) {
+  console.error(`--local only runs against the local stack; SUPABASE_URL is ${url ?? "unset"}.`);
+  process.exit(1);
+}
+
+// The seed accounts (supabase/seed.sql): student01 has completed events.
+const SEED_PASSWORD = "crunch-local";
+const accounts = local
+  ? ({
+      A: ["student01@myemeris.edu.za", SEED_PASSWORD],
+      B: ["student02@myemeris.edu.za", SEED_PASSWORD],
+    } as const)
+  : ({
+      A: [process.env.TEST_STUDENT_A_EMAIL, process.env.TEST_STUDENT_A_PASSWORD],
+      B: [process.env.TEST_STUDENT_B_EMAIL, process.env.TEST_STUDENT_B_PASSWORD],
+    } as const);
 
 if (!url || !anonKey || Object.values(accounts).some(([e, p]) => !e || !p)) {
   console.error(
@@ -314,7 +333,8 @@ async function main() {
   // 20. CRU-25 (opt-in): Supabase Auth itself refuses a non-university email.
   // Opt-in because, if the hook is NOT enabled, this really creates an auth
   // user and sends a confirmation email to the reserved example.com domain.
-  if (process.argv.includes("--signup-probe")) {
+  // Always on with --local: there's no mail server and the database is disposable.
+  if (local || process.argv.includes("--signup-probe")) {
     const { data: signup, error: signupError } = await anon.auth.signUp({
       email: `crunch-probe-${Date.now()}@example.com`,
       password: `probe-${crypto.randomUUID()}`,
@@ -328,6 +348,79 @@ async function main() {
         : `ACCOUNT CREATED (${signup.user?.id}) — enable the hook and delete this user`,
     );
   }
+
+  // 21–24. CRU-54: no direct writes to your OWN rows on tables that are
+  // written only by the sync, complete_signup or log_actual_hours. Table
+  // grants allow these statements; the missing write policies are what
+  // stop them, so a permissive policy added later would show up here.
+  // The other patches are no-ops on the row's current values, and the role
+  // probe is put back if it lands, so a FAIL against a hosted project leaves
+  // nothing changed (an insert that lands says so).
+  r = await a.client.from("users").update({ role: "lecturer" }).eq("id", a.userId).select("role");
+  const { data: roleAfter } = await a.client
+    .from("users")
+    .select("role")
+    .eq("id", a.userId)
+    .single();
+  if (roleAfter?.role !== roleRow?.role && roleRow?.role) {
+    await a.client.from("users").update({ role: roleRow.role }).eq("id", a.userId);
+  }
+  report(
+    21,
+    "CRU-54: A promotes own users row to 'lecturer' → 0 rows",
+    (!!r.error || isEmpty(r)) && roleAfter?.role === "student",
+    `${describe(r)}; role now '${roleAfter?.role}'`,
+  );
+
+  const { data: own } = await a.client.from("events").select("title").eq("id", target.id).single();
+  r = await a.client.from("events").update({ title: own?.title }).eq("id", target.id).select("id");
+  report(
+    22,
+    "CRU-54: A updates own events row directly → 0 rows",
+    !!r.error || isEmpty(r),
+    describe(r),
+  );
+
+  r = await a.client
+    .from("courses")
+    .update({ code: targetCourse.code })
+    .eq("id", targetCourse.id)
+    .select("id");
+  report(
+    23,
+    "CRU-54: A updates own courses row directly → 0 rows",
+    !!r.error || isEmpty(r),
+    describe(r),
+  );
+
+  r = await a.client
+    .from("events")
+    .insert({
+      course_id: targetCourse.id,
+      external_uid: `cru-54-probe-${Date.now()}`,
+      source: "manual",
+      type: "quiz",
+      title: "CRU-54 probe",
+      due_at: new Date().toISOString(),
+    })
+    .select("id");
+  report(
+    24,
+    "CRU-54: A inserts an event into own course directly → refused",
+    !!r.error,
+    r.error ? describe(r) : `INSERTED ${JSON.stringify(r.data)} — remove it with the service role`,
+  );
+
+  r = await a.client
+    .from("week_scores")
+    .insert({ user_id: a.userId, week_start_date: "2000-01-03", total_hours: 0 })
+    .select("id");
+  report(
+    24,
+    "CRU-54: A inserts own week_scores row directly → refused",
+    !!r.error,
+    r.error ? describe(r) : `INSERTED ${JSON.stringify(r.data)} — remove it with the service role`,
+  );
 
   // Restore A's hours (completed_at can't be cleared — see header)
   if (original.actual_hours_logged !== null) {

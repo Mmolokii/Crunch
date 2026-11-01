@@ -93,7 +93,7 @@ bun run db:stop     # stop it
 
 ## Project status
 
-This is a pilot MVP running in production at crunch-taupe.vercel.app. Students can connect their Brightspace calendar, get scored weeks, log hours, and download or delete their data; the calendar syncs nightly on Vercel Cron, with each run logged. Isolation between students is tested against production by `scripts/adversarial-test-matrix.ts`.
+This is a pilot MVP running in production at crunch-taupe.vercel.app. Students can connect their Brightspace calendar, get scored weeks, log hours, and download or delete their data; the calendar syncs nightly on Vercel Cron, with each run logged. Isolation between students is tested by `scripts/adversarial-test-matrix.ts`, on every PR in CI against a local stack and by hand against production.
 
 Still to do before inviting a full pilot cohort: production email (custom SMTP), backups, the POPIA retention policy and Information Officer, and checking the lecturer screens with a real lecturer account. Notification delivery isn't built yet, and the exam-period classifier hasn't seen real exam data. The pilot is launched from [docs/go-live-checklist.md](docs/go-live-checklist.md); open work is tracked in Linear.
 

@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "bun test src",
+    "test:security": "bun scripts/adversarial-test-matrix.ts --local",
     "db:start": "bunx supabase@2.120.0 start -x studio,imgproxy,mailpit,realtime,storage-api,edge-runtime,logflare,vector,supavisor",
     "db:stop": "bunx supabase@2.120.0 stop",
     "db:reset": "bunx supabase@2.120.0 db reset",
