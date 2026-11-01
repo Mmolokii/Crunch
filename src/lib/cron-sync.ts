@@ -20,6 +20,7 @@ import { runCalendarSync, type SyncResult } from "./calendar-sync";
 import { isAuthorizedCronRequest, mapWithConcurrency } from "./cron-auth";
 import { needsAttention, summariseRun, SYNC_RUN_RETENTION_DAYS, type RunSummary } from "./sync-run";
 import { alertConfigFromEnv, buildAlertEmail, sendSyncAlert } from "./sync-alert";
+import { heartbeatBody, heartbeatUrlFromEnv, sendHeartbeat } from "./sync-heartbeat";
 
 type RowResult = {
   calendarSourceId: string;
@@ -39,6 +40,10 @@ export async function handleNightlySync(request: Request): Promise<Response> {
   }
 
   const startedAt = Date.now();
+  // Healthchecks.io (CRU-49): a start ping, then success or fail in
+  // finishRun. A missing or unfinished night emails the team from there.
+  const heartbeat = heartbeatUrlFromEnv(process.env);
+  if (heartbeat) await sendHeartbeat(heartbeat, "start");
   const runId = await startRun();
 
   const { data: sources, error } = await supabaseAdmin.from("calendar_sources").select("id");
@@ -48,6 +53,7 @@ export async function handleNightlySync(request: Request): Promise<Response> {
       runId,
       summariseRun([{ calendarSourceId: "(listing sources)", status: "error" }]),
       startedAt,
+      heartbeat,
     );
     return new Response(JSON.stringify({ error: "Could not list calendar sources" }), {
       status: 500,
@@ -78,7 +84,7 @@ export async function handleNightlySync(request: Request): Promise<Response> {
   const summary = summariseRun(
     results.map((r) => ({ calendarSourceId: r.calendarSourceId, status: r.result.status })),
   );
-  await finishRun(runId, summary, startedAt);
+  await finishRun(runId, summary, startedAt, heartbeat);
 
   return new Response(JSON.stringify({ summary, results }), {
     status: 200,
@@ -98,8 +104,16 @@ async function startRun(): Promise<string | null> {
   return data.id;
 }
 
-async function finishRun(runId: string | null, summary: RunSummary, startedAt: number) {
-  if (needsAttention(summary)) {
+async function finishRun(
+  runId: string | null,
+  summary: RunSummary,
+  startedAt: number,
+  heartbeat: URL | null,
+) {
+  const attention = needsAttention(summary);
+  if (heartbeat)
+    await sendHeartbeat(heartbeat, attention ? "fail" : "success", heartbeatBody(summary));
+  if (attention) {
     // Always in Vercel's function logs; also emailed to the team once
     // RESEND_API_KEY and SYNC_ALERT_TO are set (CRU-27).
     console.error(
