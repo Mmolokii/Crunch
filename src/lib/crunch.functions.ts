@@ -58,7 +58,7 @@ export const getCalendarSource = createServerFn({ method: "GET" })
  */
 export const saveCalendarSource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => icsUrlSchema.parse(input))
+  .validator((input: unknown) => icsUrlSchema.parse(input))
   .handler(async ({ data, context }): Promise<SyncResult> => {
     if (!isAllowedFeedUrl(data.icsUrl)) return { status: "invalid_url" };
 
@@ -138,7 +138,7 @@ export const getMyCourses = createServerFn({ method: "GET" })
 
 export const logActualHours = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({ eventId: z.string().uuid(), hours: z.number().min(0).max(200) }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -220,7 +220,7 @@ export const exportMyData = createServerFn({ method: "GET" })
  */
 export const deleteMyAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ confirm: z.literal("DELETE") }).parse(input))
+  .validator((input: unknown) => z.object({ confirm: z.literal("DELETE") }).parse(input))
   .handler(async ({ context }) => {
     const { error } = await supabaseAdmin.auth.admin.deleteUser(context.userId);
     if (error)
@@ -269,7 +269,7 @@ export const getNotificationPrefs = createServerFn({ method: "GET" })
 
 export const saveNotificationPrefs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => notificationPrefsSchema.parse(input))
+  .validator((input: unknown) => notificationPrefsSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("notification_preferences").upsert(
       {
@@ -312,7 +312,7 @@ export const getLecturerCourses = createServerFn({ method: "GET" })
 
 export const getCohortWeeks = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ code: z.string().min(1).max(64) }).parse(input))
+  .validator((input: unknown) => z.object({ code: z.string().min(1).max(64) }).parse(input))
   .handler(async ({ data, context }) => {
     const threshold = minCohort();
     const { data: rows, error } = await context.supabase.rpc("lecturer_cohort_weeks", {
@@ -332,7 +332,7 @@ export const getCohortWeeks = createServerFn({ method: "GET" })
 
 export const getLecturerDueDates = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ code: z.string().min(1).max(64) }).parse(input))
+  .validator((input: unknown) => z.object({ code: z.string().min(1).max(64) }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase.rpc("lecturer_due_dates", {
       _code: data.code,
@@ -362,7 +362,7 @@ const dueDateInput = z.object({
 
 export const upsertDueDate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => dueDateInput.parse(input))
+  .validator((input: unknown) => dueDateInput.parse(input))
   .handler(async ({ data, context }) => {
     const args = {
       _course_id: data.courseId,
@@ -380,7 +380,7 @@ export const upsertDueDate = createServerFn({ method: "POST" })
 
 export const deleteDueDate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ eventId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ eventId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.rpc("lecturer_delete_due_date", {
       _event_id: data.eventId,
