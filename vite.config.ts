@@ -1,20 +1,34 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - TanStack devtools (dev-only, first), tanstackStart, viteReact, tailwindcss, tsConfigPaths,
-//     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
-//     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+// Explicit Vite config (CRU-60). Replaces @lovable.dev/vite-tanstack-config,
+// which wrapped these same plugins plus Lovable-editor tooling (sandbox
+// bridge, asset proxy, dev error overlays) that this repo doesn't use.
+import tailwindcss from "@tailwindcss/vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact from "@vitejs/plugin-react";
+import { nitro } from "nitro/vite";
+import { defineConfig } from "vite";
 
-export default defineConfig({
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
-    server: { entry: "server" },
+export default defineConfig(({ command }) => ({
+  server: { host: "::", port: 8080 },
+  resolve: {
+    tsconfigPaths: true,
+    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
-  // Deploy target is Vercel (see docs/adr/0001-sync-pipeline.md) — override the shared
-  // config's cloudflare-module default so builds target Vercel's Node runtime instead.
-  // NITRO_PRESET=node-server builds a plain Node server for the e2e smoke
-  // tests (CRU-57); unset (as on Vercel) it stays "vercel".
-  nitro: { preset: process.env["NITRO_PRESET"] ?? "vercel" },
-});
+  css: { transformer: "lightningcss" },
+  plugins: [
+    tailwindcss(),
+    tanstackStart({
+      // TanStack Start's server entry is src/server.ts (CSP nonce, security
+      // headers, SSR error wrapper).
+      server: { entry: "server" },
+      // Server-only modules can't be imported into the client bundle.
+      importProtection: {
+        behavior: "error",
+        client: { files: ["**/server/**"], specifiers: ["server-only"] },
+      },
+    }),
+    // Deploy target is Vercel's Node runtime (ADR-0001). NITRO_PRESET=node-server
+    // builds a plain Node server for the e2e smoke tests (CRU-57).
+    ...(command === "build" ? [nitro({ preset: process.env["NITRO_PRESET"] ?? "vercel" })] : []),
+    viteReact(),
+  ],
+}));
