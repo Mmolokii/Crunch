@@ -1,10 +1,11 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell, Container, PageHeading } from "@/components/app/AppShell";
+import { CourseSwitcher } from "@/components/app/CourseSwitcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ import {
   getLecturerDueDates,
   upsertDueDate,
 } from "@/lib/crunch.functions";
+import { courseSearchSchema, selectCourse } from "@/lib/lecturer-course";
 import { formatDue } from "@/lib/workload";
 
 const TYPES = ["problem_set", "essay", "exam", "quiz", "reading", "other"] as const;
@@ -29,6 +31,8 @@ const typeLabel: Record<EventType, string> = {
 };
 
 export const Route = createFileRoute("/_authenticated/lecturer/due-dates")({
+  validateSearch: (search) => courseSearchSchema.parse(search),
+  loaderDeps: ({ search }) => ({ course: search.course }),
   head: () => ({
     meta: [
       { title: "Manage due dates — Crunch for lecturers" },
@@ -46,11 +50,11 @@ export const Route = createFileRoute("/_authenticated/lecturer/due-dates")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  loader: async () => {
+  loader: async ({ deps }) => {
     const courses = await getLecturerCourses();
-    const course = courses[0] ?? null;
+    const course = selectCourse(courses, deps.course);
     const dueDates = course ? await getLecturerDueDates({ data: { code: course.code } }) : [];
-    return { course, dueDates };
+    return { courses, course, dueDates };
   },
   component: LecturerDueDates,
 });
@@ -66,8 +70,9 @@ type Draft = {
 };
 
 function LecturerDueDates() {
-  const { course, dueDates } = Route.useLoaderData();
+  const { courses, course, dueDates } = Route.useLoaderData();
   const router = useRouter();
+  const navigate = useNavigate({ from: Route.fullPath });
   const save = useServerFn(upsertDueDate);
   const remove = useServerFn(deleteDueDate);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -138,6 +143,17 @@ function LecturerDueDates() {
       />
 
       <Container className="flex flex-col gap-3">
+        {course && (
+          <CourseSwitcher
+            courses={courses}
+            selected={course}
+            onSelect={(code) => {
+              setDraft(null);
+              void navigate({ search: { course: code } });
+            }}
+          />
+        )}
+
         {!course && (
           <div className="surface-card animate-rise rounded-2xl p-6">
             <h2 className="font-display text-lg font-semibold">No courses linked yet</h2>
