@@ -18,6 +18,7 @@
     "db:stop": "bunx supabase@2.120.0 stop",
     "db:reset": "bunx supabase@2.120.0 db reset",
     "db:env": "bun scripts/local-env.ts",
+    "db:fingerprint": "bun scripts/schema-fingerprint.ts",
     "db:grants": "bun scripts/check-grants.ts",
     "db:types": "bunx supabase@2.120.0 gen types typescript --local --schema public > src/integrations/supabase/types.ts && prettier --write src/integrations/supabase/types.ts"
   },
