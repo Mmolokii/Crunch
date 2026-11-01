@@ -83,7 +83,7 @@ All are `SECURITY DEFINER` with a fixed `search_path`, revoked from `PUBLIC` and
 | `complete_signup(_role, _school)`           | `authenticated`       | Creates the `users` row once. Ignores `_role`: lecturer only if the email is on the allow-list           |
 | `log_actual_hours(_event_id, _hours)`       | `authenticated`       | Sets hours (0 to 200) on an event in one of the caller's own courses                                     |
 | `lecturer_courses()`                        | `authenticated`       | The caller's courses (by `lecturer_id`), grouped by code, with student counts                            |
-| `lecturer_cohort_weeks(_code, _min_cohort)` | `authenticated`       | Average weekly hours across a course's students; empty below the minimum cohort                          |
+| `lecturer_cohort_weeks(_code, _min_cohort)` | `authenticated`       | Average weekly hours across a course's students; empty below the minimum cohort (never below 8)          |
 | `lecturer_due_dates(_code)`                 | `authenticated`       | Every due date (synced and manual) for one of the caller's courses, de-duplicated across students        |
 | `lecturer_upsert_due_date(…)`               | `authenticated`       | Adds or edits a manual due date for the whole course; fills in `lecturer_id` for students who join later |
 | `lecturer_delete_due_date(_event_id)`       | `authenticated`       | Deletes a manual due date from one of the caller's courses                                               |

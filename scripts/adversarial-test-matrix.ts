@@ -19,7 +19,8 @@
  * Locally and in CI (CRU-54): `bun run test:security` runs it with --local
  * against the stack from `bun run db:start` + `bun run db:env`. --local signs
  * in as the seed students (supabase/seed.sql) and refuses any non-local URL,
- * so it can never touch a hosted project.
+ * so it can never touch a hosted project. It also runs checks 25–35 as the
+ * seed lecturer, whose expectations depend on the seed's courses.
  *
  * Checks 17–20 cover the CRU-23/24/25 fixes and only pass once those
  * migrations are applied (and, for 20, the auth hook is enabled).
@@ -33,9 +34,9 @@
  * completed and says so when it has to mark a fresh one.
  *
  * Not covered here:
- *   - Lecturer success paths, the manual-only guard against a lecturer's own
- *     ics_sync rows, the min-cohort threshold and (code, school) fan-out
- *     isolation — all need a lecturer test account (CRU-17).
+ *   - Lecturer checks against a hosted project: they run only with --local,
+ *     where the seed lecturer exists (CRU-17 has no production test lecturer).
+ *   - (code, school) fan-out isolation between schools: the seed has one school.
  *   - Subdomain email rejection in complete_signup — needs a throwaway
  *     `x@sub.myemeris.edu.za` signup, which this script won't create.
  */
@@ -422,6 +423,8 @@ async function main() {
     r.error ? describe(r) : `INSERTED ${JSON.stringify(r.data)} — remove it with the service role`,
   );
 
+  if (local) await lecturerChecks(aCourses);
+
   // Restore A's hours (completed_at can't be cleared — see header)
   if (original.actual_hours_logged !== null) {
     await a.client.rpc("log_actual_hours", {
@@ -436,6 +439,133 @@ async function main() {
 
   console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) failed.`}`);
   process.exit(failures === 0 ? 0 : 1);
+}
+
+// 25–35. The seed lecturer (supabase/seed.sql) is linked to PROG6221
+// (10 students) and XISD5319 (6, below the minimum cohort of 8), and not to
+// ADDB6311 (8 students). Student A is student01, on all three.
+async function lecturerChecks(aCourses: { id: string; code: string | null }[]) {
+  const lec = newClient();
+  const { error: signInError } = await lec.auth.signInWithPassword({
+    email: "lecturer@myemeris.edu.za",
+    password: SEED_PASSWORD,
+  });
+  if (signInError) {
+    report(25, "Seed lecturer signs in", false, signInError.message);
+    return;
+  }
+  const courseOf = (code: string) => aCourses.find((c) => c.code === code)!;
+
+  let r: Result = await lec.rpc("lecturer_courses");
+  const codes = Array.isArray(r.data) ? r.data.map((row: { code: string }) => row.code) : [];
+  report(
+    25,
+    "lecturer_courses: lecturer → exactly their linked courses",
+    !r.error && codes.join(",") === "PROG6221,XISD5319",
+    r.error ? describe(r) : `codes: ${codes.join(", ")}`,
+  );
+
+  r = await lec.rpc("lecturer_cohort_weeks", { _code: "PROG6221" });
+  const first = Array.isArray(r.data) ? (r.data[0] as { student_count: number }) : undefined;
+  report(
+    26,
+    "lecturer_cohort_weeks: own course of 10 → aggregates",
+    !r.error && first?.student_count === 10,
+    r.error ? describe(r) : `${describe(r)}, student_count ${first?.student_count}`,
+  );
+
+  r = await lec.rpc("lecturer_cohort_weeks", { _code: "XISD5319" });
+  report(27, "lecturer_cohort_weeks: own course of 6 → empty", isEmpty(r), describe(r));
+
+  r = await lec.rpc("lecturer_cohort_weeks", { _code: "XISD5319", _min_cohort: 1 });
+  report(
+    28,
+    "CRU-55: lecturer_cohort_weeks with _min_cohort = 1 on a course of 6 → empty",
+    isEmpty(r),
+    describe(r),
+  );
+
+  r = await lec.rpc("lecturer_cohort_weeks", { _code: "ADDB6311" });
+  report(29, "lecturer_cohort_weeks: someone else's course → empty", isEmpty(r), describe(r));
+
+  r = await lec.rpc("lecturer_due_dates", { _code: "ADDB6311" });
+  report(30, "lecturer_due_dates: someone else's course → empty", isEmpty(r), describe(r));
+
+  r = await lec.rpc("lecturer_due_dates", { _code: "PROG6221" });
+  const synced = Array.isArray(r.data)
+    ? (r.data as { id: string; source: string }[]).find((d) => d.source === "ics_sync")
+    : undefined;
+  if (!synced) {
+    report(31, "lecturer_due_dates: own course lists synced dates", false, describe(r));
+    return;
+  }
+  r = await lec.rpc("lecturer_delete_due_date", { _event_id: synced.id });
+  report(
+    31,
+    "lecturer_delete_due_date: synced (ics_sync) event → refused",
+    errorIs(r, "Due date not found or not manually created"),
+    describe(r),
+  );
+
+  const prog = courseOf("PROG6221");
+  const dueAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
+  r = await lec.rpc("lecturer_upsert_due_date", {
+    _course_id: prog.id,
+    _title: "CRU-54 probe",
+    _due_at: dueAt,
+    _event_id: synced.id,
+  });
+  report(
+    32,
+    "lecturer_upsert_due_date: editing a synced event → refused",
+    errorIs(r, "Due date not found or not manually created"),
+    describe(r),
+  );
+
+  r = await lec.rpc("lecturer_upsert_due_date", {
+    _course_id: courseOf("ADDB6311").id,
+    _title: "CRU-54 probe",
+    _due_at: dueAt,
+  });
+  report(
+    33,
+    "lecturer_upsert_due_date: someone else's course → 'Course not found'",
+    errorIs(r, "Course not found"),
+    describe(r),
+  );
+
+  r = await lec.from("events").select("id").eq("course_id", prog.id);
+  report(34, "RLS: lecturer reads a student's events directly → empty", isEmpty(r), describe(r));
+
+  // 35. The success path: a manual due date fans out to the class, then goes.
+  const a = newClient();
+  await a.auth.signInWithPassword({
+    email: "student01@myemeris.edu.za",
+    password: SEED_PASSWORD,
+  });
+  const probes = async () =>
+    (await a.from("events").select("id").eq("course_id", prog.id).eq("title", "CRU-54 probe")).data
+      ?.length ?? 0;
+  r = await lec.rpc("lecturer_upsert_due_date", {
+    _course_id: prog.id,
+    _title: "CRU-54 probe",
+    _due_at: dueAt,
+  });
+  const created = r.error ? 0 : await probes();
+  const deleted = r.error
+    ? r
+    : await lec.rpc("lecturer_delete_due_date", { _event_id: r.data as string });
+  const left = await probes();
+  report(
+    35,
+    "lecturer adds a due date → student sees it; deletes it → gone",
+    !r.error && !deleted.error && created === 1 && left === 0,
+    r.error
+      ? describe(r)
+      : deleted.error
+        ? `delete: ${describe(deleted)}`
+        : `student saw ${created}, then ${left}`,
+  );
 }
 
 main().catch((err) => {
