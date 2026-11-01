@@ -40,6 +40,8 @@ Unit tests live next to the code as `*.test.ts` and run with Bun's test runner (
 
 `scripts/adversarial-test-matrix.ts` attacks row level security and the database functions the way a malicious client would, as two student accounts using the anon key. CI's `security` job runs it on every PR against a local stack built from the migrations and the seed; run the same thing yourself with `bun run test:security` after `bun run db:start` and `bun run db:env`. Changes to policies, grants or `SECURITY DEFINER` functions should add a check for the new rule. After applying such a migration to production, run it there too (see the script's header for `.env.test`).
 
+Smoke tests in `e2e/` drive a production build (with its strict CSP) in Chromium against the local stack, signing in as the seed accounts: landing page, sign-up refusal, student dashboard, lecturer heatmap and a first sign-in. Run them with `bun run test:e2e` after `bun run db:start` and `bun run db:env` (once: `bunx playwright install chromium`). CI's `e2e` job runs them on every PR. A test fails if the page throws or logs a console error, so a CSP violation is caught too. When you change a flow these cover, update the test in the same PR.
+
 ## Keeping docs current
 
 Docs live in the repo and change in the same pull request as the behaviour they describe. A reviewer should ask for the doc change the same way they'd ask for a test. The map of what lives where is [docs/README.md](docs/README.md).

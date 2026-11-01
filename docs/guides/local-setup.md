@@ -46,17 +46,18 @@ You can also create accounts on the sign-up tab. Only `@myemeris.edu.za` address
 
 ## Everyday commands
 
-| Command                 | Does                                                                                |
-| ----------------------- | ----------------------------------------------------------------------------------- |
-| `bun run db:start`      | Starts the local stack (keeps your data between runs)                               |
-| `bun run db:stop`       | Stops it                                                                            |
-| `bun run db:reset`      | Rebuilds the database from the migrations and the seed. Your local changes are lost |
-| `bun run db:grants`     | Checks what `anon`/`authenticated` may do against `supabase/grants.txt`             |
-| `bun run db:types`      | Regenerates `src/integrations/supabase/types.ts` after a migration                  |
-| `bun run db:env`        | Rewrites `.env.local` (run again if `db:start` printed different keys)              |
-| `bun run dev`           | The app, with hot reload                                                            |
-| `bun run test`          | Unit tests                                                                          |
-| `bun run test:security` | The adversarial RLS test against the local stack (needs `db:start` and `db:env`)    |
+| Command                 | Does                                                                                          |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| `bun run db:start`      | Starts the local stack (keeps your data between runs)                                         |
+| `bun run db:stop`       | Stops it                                                                                      |
+| `bun run db:reset`      | Rebuilds the database from the migrations and the seed. Your local changes are lost           |
+| `bun run db:grants`     | Checks what `anon`/`authenticated` may do against `supabase/grants.txt`                       |
+| `bun run db:types`      | Regenerates `src/integrations/supabase/types.ts` after a migration                            |
+| `bun run db:env`        | Rewrites `.env.local` (run again if `db:start` printed different keys)                        |
+| `bun run dev`           | The app, with hot reload                                                                      |
+| `bun run test`          | Unit tests                                                                                    |
+| `bun run test:e2e`      | Playwright smoke tests against a production build (first: `bunx playwright install chromium`) |
+| `bun run test:security` | The adversarial RLS test against the local stack (needs `db:start` and `db:env`)              |
 
 The local database is at `postgresql://postgres:postgres@127.0.0.1:54322/postgres` if you want to look at it with `psql` or a database client.
 

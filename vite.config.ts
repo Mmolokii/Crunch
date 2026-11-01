@@ -14,5 +14,7 @@ export default defineConfig({
   },
   // Deploy target is Vercel (see docs/adr/0001-sync-pipeline.md) — override the shared
   // config's cloudflare-module default so builds target Vercel's Node runtime instead.
-  nitro: { preset: "vercel" },
+  // NITRO_PRESET=node-server builds a plain Node server for the e2e smoke
+  // tests (CRU-57); unset (as on Vercel) it stays "vercel".
+  nitro: { preset: process.env["NITRO_PRESET"] ?? "vercel" },
 });
