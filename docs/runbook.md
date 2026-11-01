@@ -118,9 +118,10 @@ bun run db:reset   # afterwards: wipes the restored personal data
 
 Compare the counts with production's Table editor, then add a line to the drill log below. Do one before launch and after any change to the backup script or the auth schema.
 
-| Date       | Dump                               | Result                                                                     | By      |
-| ---------- | ---------------------------------- | -------------------------------------------------------------------------- | ------- |
-| 2026-11-01 | Local seed (dry run of the script) | Restored; accounts sign in; adversarial matrix passes on the restored data | Mmoloki |
+| Date       | Dump                                                                     | Result                                                                                                             | By      |
+| ---------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | ------- |
+| 2026-11-01 | Local seed (dry run of the script)                                       | Restored; accounts sign in; adversarial matrix passes on the restored data                                         | Mmoloki |
+| 2026-11-01 | `crunch-20261101T0958Z` (production, taken before applying CRU-52/55/56) | Restored; all 12 row counts match production (6 accounts, 200 events); 0 orphans; local copy wiped with `db:reset` | Mmoloki |
 
 **To restore for real** (into a new project, never straight onto production):
 

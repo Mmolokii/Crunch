@@ -1,0 +1,23 @@
+{
+  // VS Code prompts anyone opening this repo to install these.
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "oven.bun-vscode",
+    "yoavbls.pretty-ts-errors",
+    "usernamehw.errorlens",
+    "editorconfig.editorconfig",
+    "mtxr.sqltools",
+    "mtxr.sqltools-driver-pg",
+    "ms-azuretools.vscode-containers",
+    "tamasfe.even-better-toml",
+    "redhat.vscode-yaml",
+    "github.vscode-github-actions",
+    "bierner.markdown-mermaid",
+    "davidanson.vscode-markdownlint",
+    "dotenv.dotenv-vscode",
+    "streetsidesoftware.code-spell-checker"
+  ],
+  "unwantedRecommendations": ["biomejs.biome", "dprint.dprint"]
+}
