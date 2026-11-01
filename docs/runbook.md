@@ -106,9 +106,23 @@ BACKUP_PASSPHRASE='<from the password manager>' \
 scripts/backup-db.sh
 ```
 
-It dumps the `public`, `auth` and `supabase_migrations` schemas and encrypts the dump before it touches disk. It then checks the file can be decrypted and read, writes it to `~/CrunchBackups` (owner-only, outside the repo), and deletes encrypted dumps older than 30 days, because they hold personal information. Take one **before every production migration, weekly, and on launch day**. Without the passphrase, a dump can't be restored, so keep it in the team's password manager. `scripts/backup-db.sh --self-test` checks the encryption without touching the database.
+It needs `pg_dump` 17 (`brew install libpq`), or Docker, in which case it uses the official `postgres:17` image. It dumps the `public`, `auth` and `supabase_migrations` schemas and encrypts the dump before it touches disk. It then checks the file can be decrypted and read, writes it to `~/CrunchBackups` (owner-only, outside the repo), and deletes encrypted dumps older than 30 days, because they hold personal information. Take one **before every production migration, weekly, and on launch day**. Without the passphrase, a dump can't be restored, so keep it in the team's password manager. `scripts/backup-db.sh --self-test` checks the encryption without touching the database.
 
-**To restore** (practise this on a non-production project first, never straight onto production):
+**Practise it: the restore drill.** A backup nobody has restored is a guess. `scripts/restore-drill.sh` restores the newest dump into the **local** stack (schema rebuilt from `supabase/migrations/`, the same way a replacement project would be), then prints row counts and checks for orphaned rows. It streams the decrypted dump and never writes it to disk.
+
+```sh
+bun run db:start
+BACKUP_PASSPHRASE='<from the password manager>' scripts/restore-drill.sh   # or pass a specific .dump.enc
+bun run db:reset   # afterwards: wipes the restored personal data
+```
+
+Compare the counts with production's Table editor, then add a line to the drill log below. Do one before launch and after any change to the backup script or the auth schema.
+
+| Date       | Dump                               | Result                                                                     | By      |
+| ---------- | ---------------------------------- | -------------------------------------------------------------------------- | ------- |
+| 2026-11-01 | Local seed (dry run of the script) | Restored; accounts sign in; adversarial matrix passes on the restored data | Mmoloki |
+
+**To restore for real** (into a new project, never straight onto production):
 
 ```sh
 openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:BACKUP_PASSPHRASE \
