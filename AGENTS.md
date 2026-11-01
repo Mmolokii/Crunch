@@ -13,6 +13,7 @@ Crunch is a TanStack Start app on Supabase. A few conventions matter more here t
 ## Database changes
 
 - Migrations in `supabase/migrations/` are additive only — no column drops, no constraint changes to existing unique constraints, each one reviewed before it ships. Ship RLS policy changes and explicit `GRANT`/`REVOKE` statements in the same migration as the schema change they support.
+- A new table or function gets `REVOKE ALL ... FROM PUBLIC, anon, authenticated` and then only the grants it needs (Supabase's defaults grant everything). Update `supabase/grants.txt` with `bun run db:grants --update`; CI compares it with the database.
 
 ## Conventions
 
