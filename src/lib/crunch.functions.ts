@@ -285,12 +285,16 @@ export const saveNotificationPrefs = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Minimum cohort size before any aggregate is shown. Configurable, not hardcoded in SQL. */
-const MIN_COHORT_DEFAULT = 8;
+/**
+ * Minimum cohort size before any aggregate is shown (ADR-0008).
+ * LECTURER_MIN_COHORT can raise it; lecturer_cohort_weeks floors it at 8 in
+ * SQL (CRU-55), so a lower value here would only mislabel the UI.
+ */
+const MIN_COHORT_FLOOR = 8;
 
 function minCohort(): number {
   const raw = Number(process.env["LECTURER_MIN_COHORT"]);
-  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : MIN_COHORT_DEFAULT;
+  return Number.isFinite(raw) ? Math.max(Math.floor(raw), MIN_COHORT_FLOOR) : MIN_COHORT_FLOOR;
 }
 
 export const getLecturerCourses = createServerFn({ method: "GET" })
