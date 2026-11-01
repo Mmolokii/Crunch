@@ -45,16 +45,19 @@ All privileged reads and writes go through server functions in `crunch.functions
 
 ## Getting started
 
-Requires [Bun](https://bun.sh), Node.js 22+ (see `.nvmrc` — `@supabase/realtime-js` needs a native `WebSocket` global that older Node doesn't have; run `nvm use` in the repo root, or `nvm alias default 22` so every new shell picks it up automatically), and a Supabase project.
+Requires [Bun](https://bun.sh), Node.js 22+ (see `.nvmrc` — `@supabase/realtime-js` needs a native `WebSocket` global that older Node doesn't have; run `nvm use` in the repo root, or `nvm alias default 22` so every new shell picks it up automatically), and [Docker](https://www.docker.com/products/docker-desktop/) for the local database.
 
 ```sh
 git clone https://github.com/Mmolokii/Crunch.git
 cd Crunch
 nvm use             # picks up Node 22 from .nvmrc
 bun install
-cp .env.example .env   # fill in your Supabase project values
-bun run dev
+bun run db:start    # local Supabase from supabase/migrations, with fictional seed data
+bun run db:env      # writes .env.local for it
+bun run dev         # http://localhost:8080 — sign in as student01@myemeris.edu.za / crunch-local
 ```
+
+No production access or secrets needed. The full walkthrough, seed accounts and troubleshooting are in [docs/guides/local-setup.md](docs/guides/local-setup.md). To run against a hosted Supabase project instead, copy `.env.example` to `.env` and fill it in.
 
 ### Environment variables
 
@@ -82,6 +85,7 @@ bun run test        # unit tests (bun test)
 bun run typecheck   # tsc for app and tests; run after a build, which generates the route tree
 bun run format      # prettier --write
 bun run db:start    # local Supabase from supabase/migrations (Docker)
+bun run db:env      # write .env.local for the local stack
 bun run db:types    # regenerate src/integrations/supabase/types.ts from it
 bun run db:reset    # rebuild the local database from scratch
 bun run db:stop     # stop it
