@@ -32,7 +32,7 @@ Follow [docs/guides/local-setup.md](docs/guides/local-setup.md): Bun, Node 22, D
 - **Test it locally first.** `bun run db:start` (Docker) builds a fresh database from every migration; `bun run db:reset` rebuilds it after you add one. If your migration can't apply cleanly from scratch, the `schema` CI job will fail too.
 - **Regenerate the types in the same PR:** `bun run db:types` rewrites `src/integrations/supabase/types.ts` from the local database. The `schema` CI job fails if the committed file doesn't match the migrations. Don't edit `types.ts` by hand.
 - **Grant exactly what the API roles need.** Supabase gives `anon` and `authenticated` ALL on every new table and EXECUTE on every new function unless your migration revokes it. `bun run db:grants` compares what those roles hold against `supabase/grants.txt`, and the `security` CI job fails on any difference. When a change is intended, run `bun run db:grants --update` and commit the new snapshot, so reviewers see the grant change as a diff.
-- Production migrations are applied by hand after merging, with a backup first (see the PR template's "After merging"). Afterwards, running the `QUERY` from `scripts/check-grants.ts` in the production SQL editor (it only reads) should print the same lines as `supabase/grants.txt`.
+- Production migrations are applied by hand after merging, with a backup first (see the PR template's "After merging"). Afterwards, check production matches the repo: run the query from `bun run db:fingerprint --sql` in the production SQL editor (it only reads, and returns hashes, no data), download the result as CSV, and run `bun run db:fingerprint --compare <file>.csv` against your local database. It lists any table, policy, function, trigger or grant that differs.
 
 ## Tests
 
