@@ -79,6 +79,11 @@ jobs:
       - name: Start the local stack (migrations + seed)
         run: bun run db:start
 
+      # Supabase grants anon/authenticated ALL on new tables by default; a
+      # migration that forgets its REVOKE shows up here (CRU-56).
+      - name: API-role grants match supabase/grants.txt
+        run: bun run db:grants
+
       - name: Point the test at it
         run: bun run db:env
 

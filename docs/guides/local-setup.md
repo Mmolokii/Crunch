@@ -51,6 +51,7 @@ You can also create accounts on the sign-up tab. Only `@myemeris.edu.za` address
 | `bun run db:start`      | Starts the local stack (keeps your data between runs)                               |
 | `bun run db:stop`       | Stops it                                                                            |
 | `bun run db:reset`      | Rebuilds the database from the migrations and the seed. Your local changes are lost |
+| `bun run db:grants`     | Checks what `anon`/`authenticated` may do against `supabase/grants.txt`             |
 | `bun run db:types`      | Regenerates `src/integrations/supabase/types.ts` after a migration                  |
 | `bun run db:env`        | Rewrites `.env.local` (run again if `db:start` printed different keys)              |
 | `bun run dev`           | The app, with hot reload                                                            |

@@ -1,0 +1,13 @@
+function complete_signup(text,text) authenticated EXECUTE
+function lecturer_cohort_weeks(text,integer) authenticated EXECUTE
+function lecturer_courses() authenticated EXECUTE
+function lecturer_delete_due_date(uuid) authenticated EXECUTE
+function lecturer_due_dates(text) authenticated EXECUTE
+function lecturer_upsert_due_date(uuid,text,timestamp with time zone,text,numeric,boolean,uuid) authenticated EXECUTE
+function log_actual_hours(uuid,numeric) authenticated EXECUTE
+table calendar_sources authenticated SELECT
+table courses authenticated SELECT
+table events authenticated SELECT
+table notification_preferences authenticated INSERT,SELECT,UPDATE
+table users authenticated SELECT
+table week_scores authenticated SELECT
