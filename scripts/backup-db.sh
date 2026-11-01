@@ -4,7 +4,8 @@
 # migration, weekly, and on launch day, until (or instead of) Supabase Pro.
 #
 # Needs:
-#   pg_dump / pg_restore 17   brew install libpq && brew link --force libpq
+#   pg_dump / pg_restore 17   brew install libpq && brew link --force libpq,
+#                             or Docker (falls back to the postgres:17 image)
 #   openssl                   preinstalled on macOS
 #   SUPABASE_DB_URL           Supabase → Connect → Session pooler URI, with the
 #                             database password. Never commit it.
@@ -52,21 +53,30 @@ if [[ "${1:-}" == "--self-test" ]]; then
 fi
 
 [[ -n "${SUPABASE_DB_URL:-}" ]] || die "set SUPABASE_DB_URL (Supabase → Connect → Session pooler)"
-command -v pg_dump >/dev/null || die "pg_dump not found: brew install libpq && brew link --force libpq"
-command -v pg_restore >/dev/null || die "pg_restore not found: brew install libpq && brew link --force libpq"
+# Local client tools if installed, otherwise the same tools from the official
+# image (Docker is already needed for local development). Version 17 matches
+# the server; an older pg_dump refuses to dump it.
+if command -v pg_dump >/dev/null && command -v pg_restore >/dev/null; then
+  PG_DUMP=(pg_dump) PG_RESTORE=(pg_restore)
+elif command -v docker >/dev/null && docker info >/dev/null 2>&1; then
+  PG_DUMP=(docker run --rm -i postgres:17-alpine pg_dump)
+  PG_RESTORE=(docker run --rm -i postgres:17-alpine pg_restore)
+else
+  die "pg_dump not found: brew install libpq && brew link --force libpq, or start Docker"
+fi
 
 stamp="$(date -u +%Y%m%dT%H%MZ)"
 file="$OUT_DIR/crunch-$stamp.dump.enc"
 
 # public: the app's data. auth: accounts and identities. supabase_migrations:
 # the migration history. Custom format so pg_restore can restore selectively.
-pg_dump "$SUPABASE_DB_URL" \
+"${PG_DUMP[@]}" "$SUPABASE_DB_URL" \
   --format=custom --no-owner --no-privileges \
   --schema=public --schema=auth --schema=supabase_migrations \
   | "${ENC[@]}" -out "$file"
 
 # Prove it can be read back before trusting it.
-"${ENC[@]}" -d -in "$file" | pg_restore --list >/dev/null \
+"${ENC[@]}" -d -in "$file" | "${PG_RESTORE[@]}" --list >/dev/null \
   || { rm -f "$file"; die "verification FAILED: the dump could not be decrypted and read; nothing kept"; }
 
 find "$OUT_DIR" -name 'crunch-*.dump.enc' -type f -mtime +"$RETENTION_DAYS" -delete
