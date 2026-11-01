@@ -35,6 +35,7 @@ flowchart LR
   B["Brightspace<br/>mystudies.iie.edu.za"]
   X["Vercel Cron<br/>02:00 UTC daily"]
   M["Resend<br/>(alerts, once configured)"]
+  H["Healthchecks.io<br/>(heartbeat, once configured)"]
 
   S -- HTTPS --> E
   S -- "sign-in (supabase-js)" --> A
@@ -43,6 +44,7 @@ flowchart LR
   Y -- "read-only ICS fetch" --> B
   X -- "Bearer CRON_SECRET" --> C
   C -. "on failures" .-> M
+  C -. "start / success / fail" .-> H
 ```
 
 - **One app.** The pages, the server functions and the sync engine are all one TanStack Start app on Vercel. There is no separate backend service ([ADR-0003](../adr/0003-one-app-one-database.md)).
@@ -119,7 +121,7 @@ What one sync does:
 5. Remove synced events that have left the feed, unless the student logged hours on them or completed them. Lecturer-added events are never removed, and an empty feed deletes nothing.
 6. Return `ok`, `invalid_url`, `unreachable`, `empty` or `cooldown`.
 
-The nightly run records totals, failing sources and duration in `sync_runs` (kept 90 days). Failures log `[cron-sync] ATTENTION`, and email the team once `RESEND_API_KEY` and `SYNC_ALERT_TO` are set. The runbook's "Checking the nightly sync" section has the queries.
+The nightly run records totals, failing sources and duration in `sync_runs` (kept 90 days). Failures log `[cron-sync] ATTENTION`, and email the team once `RESEND_API_KEY` and `SYNC_ALERT_TO` are set. Each run also pings Healthchecks.io when `HEALTHCHECK_SYNC_URL` is set (start, then success or fail), so a night that never ran or never finished emails the team too. The runbook's "Checking the nightly sync" section has the queries.
 
 ## Scoring
 

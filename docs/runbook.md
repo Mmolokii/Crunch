@@ -86,6 +86,24 @@ from sync_runs order by started_at desc limit 14;
 - **A row with no `finished_at`:** the run died part-way, most likely a function timeout. Check Vercel's function logs for that time.
 - **`failed` above 0:** `failures` lists each calendar source and its status. `unreachable` usually means Brightspace was down or the student's link changed; `invalid_url` means the stored link no longer passes the allow-list. Runs with real failures also log a line starting `[cron-sync] ATTENTION` in Vercel's function logs.
 
+## Monitoring and alerts
+
+Three things email the team; none needs anyone to look first.
+
+| Alert                                           | Comes from                                                   | Means                                                                                         |
+| ----------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| "nightly-sync is DOWN" (Healthchecks.io)        | `HEALTHCHECK_SYNC_URL`: a fail ping, or no ping by 04:00 UTC | Last night failed, never finished, or never ran. Start at "Checking the nightly sync" above   |
+| "Crunch nightly sync: N of M calendars failed"  | Resend (`RESEND_API_KEY`, `SYNC_ALERT_TO`)                   | The run finished but some feeds failed. The email lists source ids and statuses               |
+| "crunch-taupe.vercel.app is down" (UptimeRobot) | HTTP checks on `/` and `/auth` every 5 minutes               | The site isn't answering. Check Vercel's status and deployments, then treat it as an incident |
+
+**Setting them up (once):**
+
+1. **Healthchecks.io** (free): create a check named `nightly-sync`, schedule **Cron** `0 2 * * *`, time zone UTC, grace **2 hours**. Add both of us as email integrations. Copy its ping URL into Vercel's Production env as `HEALTHCHECK_SYNC_URL` and redeploy. The next 02:00 run turns the check green.
+2. **UptimeRobot** (free): two HTTP(s) monitors, `https://crunch-taupe.vercel.app/` and `/auth`, every 5 minutes, alerting both of us by email.
+3. **Resend** (free) for the per-calendar detail email: an API key in `RESEND_API_KEY` and our addresses in `SYNC_ALERT_TO`. Until a domain is verified, Resend's test sender only delivers to the account owner's address.
+
+None of them receives student data: Healthchecks gets counts (`total=… ok=… failed=…`), UptimeRobot only our public URLs.
+
 ## Notification
 
 Crunch handles personal information under South Africa's Protection of Personal Information Act (POPIA).

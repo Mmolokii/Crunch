@@ -47,6 +47,7 @@ Production must be in the state students will see.
 
 **The nightly sync**
 
+- [ ] Healthchecks.io's `nightly-sync` check is green, and UptimeRobot's two monitors are up (runbook → Monitoring and alerts).
 - [ ] The last three nights each have a finished `sync_runs` row with `failed = 0` (or only `empty`):
 
   ```sql
