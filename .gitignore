@@ -12,6 +12,8 @@ dist
 dist-ssr
 .output
 .vercel
+/test-results
+/playwright-report
 .vinxi
 .tanstack/**
 .nitro
