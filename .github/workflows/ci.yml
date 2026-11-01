@@ -39,6 +39,14 @@ jobs:
   schema:
     runs-on: ubuntu-latest
     steps:
+      # Linux hands out local ports for outgoing connections from 32768-60999,
+      # which covers Supabase's 54321-54329. An image pull that happens to use
+      # 54322 makes `db start` fail with "address already in use", and the
+      # port stays taken for ~60s in TIME_WAIT (CRU-63). Keep outgoing ports
+      # below the stack's. Runs first, before checkout opens a connection.
+      - name: Keep outgoing ports clear of the local stack
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="32768 49999"
+
       - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
@@ -73,6 +81,10 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
+      # See the schema job (CRU-63).
+      - name: Keep outgoing ports clear of the local stack
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="32768 49999"
+
       - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
@@ -83,8 +95,8 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Start the local stack (migrations + seed)
-        # GitHub runners occasionally report the database port as already in
-        # use on the first start (CRU-62); one clean retry gets past it.
+        # Fallback for any other start-up flake (CRU-62); the port collision
+        # itself is prevented by the step above (CRU-63).
         run: |
           bun run db:start || {
             echo "::warning::The local stack failed to start; retrying once."
@@ -110,6 +122,10 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
+      # See the schema job (CRU-63).
+      - name: Keep outgoing ports clear of the local stack
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="32768 49999"
+
       - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
@@ -127,8 +143,8 @@ jobs:
         run: bunx playwright install --with-deps chromium
 
       - name: Start the local stack (migrations + seed)
-        # GitHub runners occasionally report the database port as already in
-        # use on the first start (CRU-62); one clean retry gets past it.
+        # Fallback for any other start-up flake (CRU-62); the port collision
+        # itself is prevented by the step above (CRU-63).
         run: |
           bun run db:start || {
             echo "::warning::The local stack failed to start; retrying once."
