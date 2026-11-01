@@ -11,7 +11,7 @@ Fixes CRU-
 ## Checklist
 
 - [ ] `bun run lint`, `bun run test`, `bun run build` and `bun run typecheck` pass
-- [ ] New or changed server functions validate input with Zod (`inputValidator`)
+- [ ] New or changed server functions validate input with Zod (`.validator()`)
 - [ ] New routes export `head()` metadata
 - [ ] Migrations are additive, and include their RLS policies and `GRANT`/`REVOKE`
 - [ ] Privileged checks live in Postgres or server functions, never in the browser

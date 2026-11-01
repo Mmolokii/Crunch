@@ -17,7 +17,7 @@ Crunch is a TanStack Start app on Supabase. A few conventions matter more here t
 
 ## Conventions
 
-- Server functions validate input with Zod (`inputValidator`) — every one of them, no exceptions.
+- Server functions validate input with Zod (`.validator()`) — every one of them, no exceptions.
 - Every route exports its own `head()` metadata (title, description, OG tags) — public and authenticated pages alike.
 - `src/lib/workload.ts` is pure logic (scoring, grouping, formatting) with no I/O — keep it that way so it stays easy to test.
 
