@@ -354,7 +354,11 @@ const dueDateInput = z.object({
   courseId: z.string().uuid(),
   eventId: z.string().uuid().nullable().optional(),
   title: z.string().trim().min(1).max(200),
-  dueAt: z.string().min(1),
+  dueAt: z
+    .string()
+    .min(1)
+    .max(64)
+    .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid date"),
   type: z.enum(["problem_set", "essay", "exam", "quiz", "reading", "other"]),
   estimatedHours: z.number().min(0).max(200),
   isHighStakes: z.boolean(),

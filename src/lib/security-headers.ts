@@ -6,8 +6,7 @@
  * server.ts makes a fresh nonce per request and the router stamps it on every
  * inline script TanStack Start renders (see src/router.tsx), so an injected
  * <script> without it is refused. style-src keeps 'unsafe-inline': React style
- * attributes and the chart component's <style> need it, and nonces can't cover
- * style attributes.
+ * attributes need it, and nonces can't cover style attributes.
  */
 import { randomBytes } from "node:crypto";
 
