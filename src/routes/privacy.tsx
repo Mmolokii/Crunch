@@ -60,7 +60,7 @@ function PrivacyPage() {
       <Section title="How your calendar feed URL is stored">
         <p>
           Your calendar subscription URL is a secret: anyone holding it can read your course
-          calendar. We store it encrypted at rest, only ever show it back to you (in Settings), and
+          calendar. We store it encrypted at rest, never show it back once it&apos;s saved, and
           never include it in logs, analytics, error reports or the data download. Our server only
           ever fetches it from the university&apos;s Brightspace. You can replace it at any time in
           Settings; deleting your account removes it.
@@ -93,7 +93,7 @@ function PrivacyPage() {
           Settings → Your data → Download my data gives you a file with everything Crunch holds
           about you: your account, courses, deadlines, logged hours, week scores and notification
           settings. Your Brightspace link is left out of the file because it gives access to your
-          calendar; you can see it in Settings.
+          calendar; you can find it in Brightspace under Calendar → Subscribe.
         </p>
       </Section>
 

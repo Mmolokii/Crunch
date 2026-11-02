@@ -130,7 +130,7 @@ function SettingsPage() {
   const save = useServerFn(saveCalendarSource);
   const syncNow = useServerFn(syncCalendarNow);
   const savePrefs = useServerFn(saveNotificationPrefs);
-  const [url, setUrl] = useState(source?.icsUrl ?? "");
+  const [url, setUrl] = useState("");
   const [prefs, setPrefs] = useState<NotificationPrefs>(loadedPrefs);
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -199,6 +199,7 @@ function SettingsPage() {
       // result, not an inferred one. See docs/adr/0001-sync-pipeline.md.
       const result = await save({ data: { icsUrl: url.trim() } });
       toastSyncResult(result);
+      setUrl("");
       await router.invalidate();
     } catch (error) {
       toast.error(
@@ -278,9 +279,19 @@ function SettingsPage() {
           <h2 className="font-display text-lg font-semibold">Calendar feed</h2>
           <p className="mt-1 text-sm text-muted-foreground">{formatSynced(source?.lastSyncedAt)}</p>
           <div className="mt-4 flex flex-col gap-2">
-            <Label htmlFor="feed">Brightspace subscription URL</Label>
+            <Label htmlFor="feed">
+              {source
+                ? "Replace your Brightspace subscription URL"
+                : "Brightspace subscription URL"}
+            </Label>
+            {source ? (
+              <p id="feed-hint" className="text-sm text-muted-foreground">
+                Your calendar is connected. The link is stored encrypted and isn&apos;t shown again.
+              </p>
+            ) : null}
             <Input
               id="feed"
+              aria-describedby={source ? "feed-hint" : undefined}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://mystudies.iie.edu.za/d2l/le/calendar/feed/…"
