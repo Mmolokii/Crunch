@@ -97,7 +97,7 @@ sequenceDiagram
   P-->>B: role → /lecturer or /dashboard
 ```
 
-- Passwords and sessions belong to Supabase Auth. Crunch never stores a password.
+- Passwords and sessions belong to Supabase Auth. Crunch never stores a password. Students reset one from `/auth` and change one in Settings; both end the account's other sessions.
 - The browser never chooses a role. `complete_signup` decides it from `lecturer_allowlist`, which only the service role can change ([ADR-0005](../adr/0005-lecturer-allowlist.md)).
 - Non-university addresses are refused by an Auth hook before an account exists ([ADR-0006](../adr/0006-university-only-signup.md)).
 - `/auth/confirm` verifies a token only when the student presses the button, so Microsoft 365's link scanner can't use up the link ([ADR-0010](../adr/0010-scanner-safe-email-confirmation.md)). It takes effect once production email is configured (CRU-33).

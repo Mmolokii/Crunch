@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { MIN_PASSWORD_LENGTH, passwordProblem } from "@/lib/password";
 
 const ALLOWED_DOMAIN = "myemeris.edu.za";
 
@@ -43,6 +44,8 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [forgot, setForgot] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   // The role is decided by complete_signup from the lecturer allow-list (CRU-24);
   // nothing the browser sends can change it.
@@ -82,6 +85,11 @@ function AuthPage() {
       setNotice(`Use your exact @${ALLOWED_DOMAIN} address — subdomains aren't accepted.`);
       return;
     }
+    const problem = passwordProblem(password);
+    if (problem) {
+      setNotice(problem);
+      return;
+    }
     setBusy(true);
     setNotice(null);
     const { data, error } = await supabase.auth.signUp({
@@ -99,6 +107,77 @@ function AuthPage() {
       return;
     }
     await afterSession();
+  }
+
+  // The answer is the same whether or not the address has an account, so this
+  // form can't be used to find out who has signed up (CRU-64).
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    if (!domainOk(email)) {
+      setNotice(`Use your exact @${ALLOWED_DOMAIN} address — subdomains aren't accepted.`);
+      return;
+    }
+    setBusy(true);
+    setNotice(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: window.location.origin + "/auth/reset",
+    });
+    setBusy(false);
+    if (error?.status === 429) {
+      setNotice("Too many requests. Please wait a while and try again.");
+      return;
+    }
+    setResetSent(true);
+  }
+
+  function showForgot(value: boolean) {
+    setForgot(value);
+    setResetSent(false);
+    setNotice(null);
+  }
+
+  if (forgot) {
+    return (
+      <div className="grain-bg flex min-h-screen flex-col items-center justify-center px-5 py-16">
+        <div className="mb-8">
+          <Logo />
+        </div>
+        <div className="glass-panel w-full max-w-md rounded-2xl p-6 sm:p-8">
+          <h1 className="text-xl font-semibold">Reset your password</h1>
+          {resetSent ? (
+            <p className="mt-2 text-sm text-muted-foreground" role="status">
+              If that address has a Crunch account, a reset link is on its way. Check your inbox.
+            </p>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Enter your university email and we&apos;ll send you a link.
+              </p>
+              <form className="mt-4 space-y-4" onSubmit={handleForgot}>
+                <Field
+                  id="fp-email"
+                  label="University email"
+                  value={email}
+                  onChange={setEmail}
+                  type="email"
+                />
+                <Button type="submit" className="w-full" disabled={busy}>
+                  {busy ? "Sending…" : "Send reset link"}
+                </Button>
+              </form>
+            </>
+          )}
+          {notice && <p className="mt-4 text-sm text-destructive">{notice}</p>}
+          <Button
+            variant="link"
+            className="mt-4 min-h-11 w-full text-foreground underline"
+            onClick={() => showForgot(false)}
+          >
+            Back to sign in
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -143,6 +222,13 @@ function AuthPage() {
                 {busy ? "Signing in…" : "Sign in"}
               </Button>
             </form>
+            <Button
+              variant="link"
+              className="mt-2 min-h-11 w-full text-foreground underline"
+              onClick={() => showForgot(true)}
+            >
+              Forgot your password?
+            </Button>
           </TabsContent>
 
           <TabsContent value="signup">
@@ -160,6 +246,8 @@ function AuthPage() {
                 value={password}
                 onChange={setPassword}
                 type="password"
+                autoComplete="new-password"
+                hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
               />
               <Button type="submit" className="w-full" disabled={busy}>
                 {busy ? "Creating account…" : "Create account"}
@@ -184,12 +272,16 @@ function Field({
   value,
   onChange,
   type,
+  autoComplete,
+  hint,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (v: string) => void;
   type: string;
+  autoComplete?: string;
+  hint?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -198,10 +290,16 @@ function Field({
         id={id}
         type={type}
         value={value}
-        autoComplete={type === "password" ? "current-password" : "email"}
+        autoComplete={autoComplete ?? (type === "password" ? "current-password" : "email")}
+        aria-describedby={hint ? `${id}-hint` : undefined}
         onChange={(e) => onChange(e.target.value)}
         required
       />
+      {hint && (
+        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

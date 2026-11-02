@@ -14,6 +14,7 @@ Don't edit the generated file, and don't add Next.js or Remix conventions
 | `contact.tsx`                           | `/contact`            | Public                     |
 | `auth.tsx`                              | `/auth`               | Sign in and sign up        |
 | `auth_.confirm.tsx`                     | `/auth/confirm`       | Email confirmation link    |
+| `auth_.reset.tsx`                       | `/auth/reset`         | Choose a new password      |
 | `_authenticated/route.tsx`              | (layout)              | Gate: redirects to `/auth` |
 | `_authenticated/onboarding.tsx`         | `/onboarding`         | Student: connect calendar  |
 | `_authenticated/dashboard.tsx`          | `/dashboard`          | Student: upcoming weeks    |
