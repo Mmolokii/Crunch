@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { MIN_PASSWORD_LENGTH, passwordProblem } from "@/lib/password";
 import {
   deleteMyAccount,
   exportMyData,
@@ -139,6 +140,11 @@ function SettingsPage() {
   const [exporting, setExporting] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [repeatedPassword, setRepeatedPassword] = useState("");
+  const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   async function onExport() {
     setExporting(true);
@@ -216,6 +222,42 @@ function SettingsPage() {
       toast.error("Sync failed. Please try again.");
     } finally {
       setSyncing(false);
+    }
+  }
+
+  // Checks the current password first, so a borrowed signed-in browser can't
+  // take the account over. Then ends the account's other sessions (CRU-64).
+  async function onChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    const problem = passwordProblem(newPassword, repeatedPassword);
+    setPasswordNotice(problem);
+    if (problem || !profile?.email) return;
+
+    setChangingPassword(true);
+    try {
+      const { error: wrong } = await supabase.auth.signInWithPassword({
+        email: profile.email,
+        password: currentPassword,
+      });
+      if (wrong) {
+        setPasswordNotice("Your current password isn't right.");
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+        current_password: currentPassword,
+      });
+      if (error) {
+        setPasswordNotice(error.message);
+        return;
+      }
+      await supabase.auth.signOut({ scope: "others" });
+      setCurrentPassword("");
+      setNewPassword("");
+      setRepeatedPassword("");
+      toast.success("Password changed. Other devices have been signed out.");
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -330,6 +372,57 @@ function SettingsPage() {
               Sign out
             </Button>
           </div>
+
+          <form className="mt-6 border-t border-border/70 pt-5" onSubmit={onChangePassword}>
+            <h3 className="text-sm font-medium">Change password</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              At least {MIN_PASSWORD_LENGTH} characters. This signs you out on your other devices.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2 sm:col-span-2">
+                <Label htmlFor="current-password">Current password</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="new-password">New password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="repeat-password">Repeat new password</Label>
+                <Input
+                  id="repeat-password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={repeatedPassword}
+                  onChange={(e) => setRepeatedPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            {passwordNotice && <p className="mt-4 text-sm text-destructive">{passwordNotice}</p>}
+            <Button
+              type="submit"
+              variant="outline"
+              className="mt-4 rounded-full"
+              disabled={changingPassword}
+            >
+              {changingPassword ? "Changing…" : "Change password"}
+            </Button>
+          </form>
         </section>
 
         <section className="surface-card animate-rise rounded-2xl p-6">

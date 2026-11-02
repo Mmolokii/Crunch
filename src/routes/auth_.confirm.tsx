@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 
 import { Logo } from "@/components/site/Logo";
@@ -13,8 +14,15 @@ import { supabase } from "@/integrations/supabase/client";
  * presses the button, so Microsoft 365's Safe Links scanner (which opens every
  * link in a university inbox first) can't use the link up.
  *
- * Wire-up: Supabase → Authentication → Emails → "Confirm signup" template,
- * link href = {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email
+ * Confirming an email ends signed out, on purpose (CRU-64). This page can't say
+ * whose link it was given, so if it stayed signed in, a link for an attacker's
+ * own unconfirmed account would sign a classmate into it, and the classmate
+ * could paste their Brightspace link there. Signing in needs the password.
+ * A reset link does need its session, and /auth/reset names the account.
+ *
+ * Wire-up: Supabase → Authentication → Emails, link href =
+ *   "Confirm signup":  {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email
+ *   "Reset password":  {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery
  */
 
 const searchSchema = z.object({
@@ -29,7 +37,7 @@ export const Route = createFileRoute("/auth_/confirm")({
       { title: "Confirm your email — Crunch" },
       {
         name: "description",
-        content: "Confirm your university email address to finish setting up Crunch.",
+        content: "Confirm your university email address, or continue resetting your password.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -52,17 +60,17 @@ function ConfirmPage() {
       setState("failed");
       return;
     }
-    // Same as signing in on /auth: the role comes from complete_signup (CRU-24).
-    const { data: role, error: signupError } = await supabase.rpc("complete_signup");
-    if (signupError) {
-      await supabase.auth.signOut();
-      setState("failed");
+    if (type === "recovery") {
+      await navigate({ to: "/auth/reset" });
       return;
     }
-    navigate({ to: role === "lecturer" ? "/lecturer" : "/dashboard" });
+    await supabase.auth.signOut({ scope: "local" });
+    toast.success("Email confirmed. Sign in to continue.");
+    await navigate({ to: "/auth" });
   }
 
   const linkUsable = Boolean(tokenHash && type);
+  const isReset = type === "recovery";
 
   return (
     <div className="grain-bg flex min-h-screen flex-col items-center justify-center px-5 py-16">
@@ -75,7 +83,8 @@ function ConfirmPage() {
             <h1 className="text-xl font-semibold">This link didn&apos;t work</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               It may have expired or already been used. Sign in with your email and password; if
-              your account isn&apos;t confirmed yet, create it again to get a fresh link.
+              your account isn&apos;t confirmed yet, create it again to get a fresh link. To reset a
+              password, ask for a new link from the sign-in page.
             </p>
             <Button className="mt-6 w-full min-h-11" onClick={() => navigate({ to: "/auth" })}>
               Go to sign in
@@ -83,16 +92,20 @@ function ConfirmPage() {
           </>
         ) : (
           <>
-            <h1 className="text-xl font-semibold">Confirm your email</h1>
+            <h1 className="text-xl font-semibold">
+              {isReset ? "Reset your password" : "Confirm your email"}
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              One tap and your Crunch account is ready.
+              {isReset
+                ? "Continue to choose a new password."
+                : "One tap, then sign in and your Crunch account is ready."}
             </p>
             <Button
               className="mt-6 w-full min-h-11"
               onClick={confirm}
               disabled={state === "working"}
             >
-              {state === "working" ? "Confirming…" : "Confirm my email"}
+              {state === "working" ? "Checking…" : isReset ? "Continue" : "Confirm my email"}
             </Button>
           </>
         )}
