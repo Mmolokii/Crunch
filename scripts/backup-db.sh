@@ -8,7 +8,8 @@
 #                             or Docker (falls back to the postgres:17 image)
 #   openssl                   preinstalled on macOS
 #   SUPABASE_DB_URL           Supabase → Connect → Session pooler URI, with the
-#                             database password. Never commit it.
+#                             database password, percent-encoded if it has
+#                             characters like @ / # ?. Never commit it.
 #   BACKUP_PASSPHRASE         long and random; keep it in a password manager.
 #                             Without it a backup can't be restored.
 #
@@ -68,16 +69,22 @@ fi
 stamp="$(date -u +%Y%m%dT%H%MZ)"
 file="$OUT_DIR/crunch-$stamp.dump.enc"
 
+# The dump only gets its final name once it has been read back, so a failed run
+# leaves nothing that the restore drill could pick up as the newest backup.
+partial="$file.partial"
+trap 'rm -f "$partial"' EXIT
+
 # public: the app's data. auth: accounts and identities. supabase_migrations:
 # the migration history. Custom format so pg_restore can restore selectively.
 "${PG_DUMP[@]}" "$SUPABASE_DB_URL" \
   --format=custom --no-owner --no-privileges \
   --schema=public --schema=auth --schema=supabase_migrations \
-  | "${ENC[@]}" -out "$file"
+  | "${ENC[@]}" -out "$partial"
 
 # Prove it can be read back before trusting it.
-"${ENC[@]}" -d -in "$file" | "${PG_RESTORE[@]}" --list >/dev/null \
-  || { rm -f "$file"; die "verification FAILED: the dump could not be decrypted and read; nothing kept"; }
+"${ENC[@]}" -d -in "$partial" | "${PG_RESTORE[@]}" --list >/dev/null \
+  || die "verification FAILED: the dump could not be decrypted and read; nothing kept"
+mv "$partial" "$file"
 
 find "$OUT_DIR" -name 'crunch-*.dump.enc' -type f -mtime +"$RETENTION_DAYS" -delete
 
