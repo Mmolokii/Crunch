@@ -12,7 +12,8 @@ University inboxes run on Microsoft 365, whose Safe Links scanner opens every li
 ## Decision
 
 - The "Confirm signup" email template links to `/auth/confirm?token_hash=…&type=email` instead of Supabase's verify URL.
-- The `/auth/confirm` page (`src/routes/auth_.confirm.tsx`) does nothing on load. It calls `verifyOtp` only when the student presses **Confirm my email**, then runs `complete_signup`.
+- The `/auth/confirm` page (`src/routes/auth_.confirm.tsx`) does nothing on load. It calls `verifyOtp` only when the student presses **Confirm my email**.
+- Amended by CRU-64: after confirming, the page signs out and sends the student to sign in, which is where `complete_signup` runs. The page can't tell whose link it was given, so staying signed in would let a link for someone else's unconfirmed account sign a classmate into it. Reset links use the same page (`type=recovery`) and keep their session, because `/auth/reset` needs it and names the account.
 - The page is `noindex`, and an expired or used link explains what to do next.
 
 ## Consequences
