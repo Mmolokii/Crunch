@@ -31,7 +31,7 @@ Production must be in the state students will see.
 
 - [ ] `main` is green in CI, and nothing is merged after this point without telling the launch lead.
 - [ ] `bun --env-file=.env.test scripts/adversarial-test-matrix.ts --signup-probe` passes every check against production.
-- [ ] Dependabot shows 0 open alerts.
+- [ ] The `audit` CI job is green on `main`, and Dependabot shows 0 open alerts. Trust the job over Dependabot, which can miss advisories with `bun.lock`.
 
 **Configuration** (check that each one is set; never paste values into the issue)
 

@@ -32,6 +32,26 @@ jobs:
       - name: Type-check
         run: bun run typecheck
 
+  # Fails on a high or critical advisory anywhere in the lockfile (CRU-67).
+  # Dependabot can miss these with bun.lock, so this is the check to trust. It
+  # isn't a required check: a new advisory shouldn't block unrelated PRs, but
+  # the go-live checklist needs it green. minimatch's moderate advisory stays
+  # until eslint's range allows the fix; it only runs at lint time.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Audit dependencies
+        run: bun audit --audit-level=high
+
   # Builds a fresh database from supabase/migrations alone, then loads
   # supabase/seed.sql, so a migration that can't replay from scratch or a
   # broken seed fails here (staging and local setup depend on both). Then
