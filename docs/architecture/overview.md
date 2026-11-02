@@ -62,7 +62,7 @@ flowchart LR
 | `src/lib/calendar-sync.ts`                        | `runCalendarSync`: fetch, parse, classify and upsert one student's feed                                   |
 | `src/lib/cron-sync.ts`                            | The nightly run over every calendar source, and its `sync_runs` log                                       |
 | `src/lib/ics-*.ts`                                | Feed parsing, URL allow-list, AES-256-GCM encryption of saved feed URLs                                   |
-| `src/lib/sync-*.ts`                               | Pure helpers: what to delete (`sync-plan`), cooldown, run summaries, alert emails                         |
+| `src/lib/sync-*.ts`                               | Pure helpers: what to delete (`sync-plan`), run summaries, alert emails                                   |
 | `src/lib/workload.ts`                             | Pure scoring: weekly totals, Light → Brutal levels, clash detection                                       |
 | `src/lib/security-headers.ts`, `server-errors.ts` | Response headers and CSP; what a database error may tell the browser                                      |
 | `src/integrations/supabase/`                      | Browser client, server client, service-role client, auth middleware, generated types                      |
@@ -109,7 +109,7 @@ There is one sync code path, `runCalendarSync(calendarSourceId)`, with three cal
 | Trigger    | Where                                   | Notes                                                       |
 | ---------- | --------------------------------------- | ----------------------------------------------------------- |
 | Onboarding | `saveCalendarSource`                    | Runs before the response, so the screen shows a real result |
-| "Sync now" | `syncCalendarNow` (Settings)            | 2-minute cooldown per student (`sync-cooldown.ts`)          |
+| "Sync now" | `syncCalendarNow` (Settings)            | Limited per student by `claim_calendar_sync`, as is saving  |
 | Nightly    | `/api/cron/sync`, Vercel Cron 02:00 UTC | Constant-time bearer check; 4 students at a time; logged    |
 
 What one sync does:

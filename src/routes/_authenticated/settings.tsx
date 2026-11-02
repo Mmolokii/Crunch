@@ -116,7 +116,7 @@ function toastSyncResult(result: SyncResult | { status: "no_source" }) {
       toast.warning("Saved, but no due dates have come through yet.");
       return;
     case "cooldown":
-      toast.info(`Synced a moment ago. Try again in ${retryLabel(result.retryInSeconds)}.`);
+      toast.info(`Checked a moment ago. Try again in ${retryLabel(result.retryInSeconds)}.`);
       return;
     case "no_source":
       toast.error("Add a calendar feed first.");

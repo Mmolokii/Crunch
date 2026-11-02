@@ -8,6 +8,7 @@ export type Database = {
           created_at: string | null;
           ics_url_encrypted: string;
           id: string;
+          last_sync_attempt_at: string | null;
           last_synced_at: string | null;
           user_id: string | null;
         };
@@ -16,6 +17,7 @@ export type Database = {
           created_at?: string | null;
           ics_url_encrypted: string;
           id?: string;
+          last_sync_attempt_at?: string | null;
           last_synced_at?: string | null;
           user_id?: string | null;
         };
@@ -23,6 +25,7 @@ export type Database = {
           created_at?: string | null;
           ics_url_encrypted?: string;
           id?: string;
+          last_sync_attempt_at?: string | null;
           last_synced_at?: string | null;
           user_id?: string | null;
         };
@@ -285,6 +288,13 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      claim_calendar_sync: {
+        Args: { _new_ics_url_encrypted?: string; _user_id: string };
+        Returns: {
+          retry_in_seconds: number;
+          source_id: string;
+        }[];
+      };
       complete_signup: { Args: { _role?: string; _school?: string }; Returns: string };
       hook_require_university_email: { Args: { event: Json }; Returns: Json };
       lecturer_cohort_weeks: {
