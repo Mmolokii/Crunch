@@ -20,7 +20,8 @@
  * against the stack from `bun run db:start` + `bun run db:env`. --local signs
  * in as the seed students (supabase/seed.sql) and refuses any non-local URL,
  * so it can never touch a hosted project. It also runs checks 25–35 as the
- * seed lecturer, whose expectations depend on the seed's courses.
+ * seed lecturer, whose expectations depend on the seed's courses, and checks
+ * 38–43 with the service role.
  *
  * Checks 17–20 cover the CRU-23/24/25 fixes and only pass once those
  * migrations are applied (and, for 20, the auth hook is enabled).
@@ -425,6 +426,14 @@ async function main() {
 
   if (local) await lecturerChecks(aCourses);
 
+  // 36. The sync claim is server-only, so a student can't reset their own limit.
+  r = await b.client.rpc("claim_calendar_sync", { _user_id: b.userId });
+  report(36, "CRU-66: a student calls claim_calendar_sync → refused", isDenied(r), describe(r));
+  r = await anon.rpc("claim_calendar_sync", { _user_id: b.userId });
+  report(37, "CRU-66: no session calls claim_calendar_sync → refused", isDenied(r), describe(r));
+
+  if (local) await syncClaimChecks(a.userId);
+
   // Restore A's hours (completed_at can't be cleared — see header)
   if (original.actual_hours_logged !== null) {
     await a.client.rpc("log_actual_hours", {
@@ -566,6 +575,85 @@ async function lecturerChecks(aCourses: { id: string; code: string | null }[]) {
         ? `delete: ${describe(deleted)}`
         : `student saw ${created}, then ${left}`,
   );
+}
+
+// 38–43. The limit itself, called as the server does. Local only: it writes to
+// the student's calendar_sources row with the service role.
+async function syncClaimChecks(userId: string) {
+  const admin = createClient(url!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  type Claim = { source_id: string; retry_in_seconds: number };
+  const claim = async (newLink?: string) => {
+    const { data, error } = await admin.rpc("claim_calendar_sync", {
+      _user_id: userId,
+      ...(newLink ? { _new_ics_url_encrypted: newLink } : {}),
+    });
+    if (error) throw error;
+    return (data as Claim[])[0] ?? null;
+  };
+  const row = () => admin.from("calendar_sources").select("*").eq("user_id", userId).single();
+  const ago = (seconds: number) => new Date(Date.now() - seconds * 1000).toISOString();
+  const setTimes = (attempted: string | null, synced: string | null) =>
+    admin
+      .from("calendar_sources")
+      .update({ last_sync_attempt_at: attempted, last_synced_at: synced })
+      .eq("user_id", userId);
+
+  await admin.from("calendar_sources").delete().eq("user_id", userId);
+  try {
+    const none = await claim();
+    report(38, "CRU-66: no calendar and no new link → no claim", none === null, `${none}`);
+
+    const together = await Promise.all(Array.from({ length: 5 }, () => claim("first-link")));
+    const winners = together.filter((c) => c?.retry_in_seconds === 0).length;
+    report(
+      39,
+      "CRU-66: five concurrent claims → exactly one wins",
+      winners === 1,
+      `${winners} won`,
+    );
+
+    // No successful sync yet: this is the failed-attempt case.
+    const afterFailure = await claim();
+    const failWait = afterFailure?.retry_in_seconds ?? 0;
+    report(
+      40,
+      "CRU-66: straight after a failed attempt → refused for up to 30s",
+      failWait > 0 && failWait <= 30,
+      `retry in ${failWait}s`,
+    );
+
+    const refused = await claim("second-link");
+    const kept = (await row()).data?.ics_url_encrypted;
+    report(
+      41,
+      "CRU-66: a refused claim doesn't replace the saved link",
+      (refused?.retry_in_seconds ?? 0) > 0 && kept === "first-link",
+      `saved: ${kept}`,
+    );
+
+    await setTimes(ago(31), ago(10));
+    const afterSuccess = (await claim())?.retry_in_seconds ?? 0;
+    report(
+      42,
+      "CRU-66: 10s after a successful sync → refused for about 110s",
+      afterSuccess > 100 && afterSuccess <= 110,
+      `retry in ${afterSuccess}s`,
+    );
+
+    await setTimes(ago(31), ago(121));
+    const won = await claim("third-link");
+    const saved = (await row()).data?.ics_url_encrypted;
+    report(
+      43,
+      "CRU-66: once both gaps have passed → claim wins and saves the new link",
+      won?.retry_in_seconds === 0 && saved === "third-link",
+      `retry ${won?.retry_in_seconds}s, saved: ${saved}`,
+    );
+  } finally {
+    await admin.from("calendar_sources").delete().eq("user_id", userId);
+  }
 }
 
 main().catch((err) => {

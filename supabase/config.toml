@@ -12,6 +12,8 @@ minimum_password_length = 10
 # Production confirms by email. Locally there's no mail server running, so
 # accounts are usable straight after sign-up.
 enable_confirmations = false
+# Matches production: changing a password needs a session under 24 hours old.
+secure_password_change = true
 
 # Same Before User Created hook as production (ADR-0006): only
 # @myemeris.edu.za addresses can sign up.

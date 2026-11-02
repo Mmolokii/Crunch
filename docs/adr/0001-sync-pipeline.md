@@ -114,6 +114,8 @@ Several parts of the original decision were changed after the 30 October audit. 
 
 **Added: a cooldown on user-triggered syncs** (CRU-29). Trigger 1 (save) and Trigger 2 (Sync now) return a `cooldown` result within 2 minutes of the last successful sync instead of fetching again. Failed syncs don't start the cooldown. The nightly run isn't affected.
 
+**Changed: the limit lives in Postgres and counts failures** (CRU-66, amends the cooldown above). `claim_calendar_sync` claims each user-triggered sync in one atomic statement, needing 30 seconds since the last attempt and 2 minutes since the last success. Concurrent requests can't all pass, and repeated failures can't make unlimited outbound requests. A link that fails the allow-list is refused before the claim, so a typo can still be retried straight away.
+
 **Changed: the nightly run** (CRU-35, CRU-27; resolves the 2026-09-17 "still open" note and the time-limit consequence above). Vercel Cron calls `/api/cron/sync` daily at 02:00 UTC (`vercel.json`). The bearer token is compared in constant time, up to four students sync at once, and every run is recorded in `sync_runs` (totals, failing sources and their statuses, duration; kept 90 days). A run with real failures logs `[cron-sync] ATTENTION`, which is where email alerting will attach (CRU-27). The runbook has the queries.
 
 **Added: errors that reach the browser** (CRU-35). Database errors are logged server-side and replaced with a generic message; only messages our own database functions raise for users (SQLSTATE `P0001`) pass through.

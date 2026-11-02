@@ -8,8 +8,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { runCalendarSync, type SyncResult } from "@/lib/calendar-sync";
 import { encryptIcsUrl } from "@/lib/ics-encryption";
 import { isAllowedFeedUrl } from "@/lib/ics-url";
-import { publicError } from "@/lib/server-errors";
-import { cooldownSecondsLeft } from "@/lib/sync-cooldown";
+import { GENERIC_ERROR_MESSAGE, publicError } from "@/lib/server-errors";
 import type { AppEvent } from "@/lib/workload";
 
 export type { SyncResult } from "@/lib/calendar-sync";
@@ -30,6 +29,20 @@ async function readOwnSource(context: { supabase: SupabaseClient<Database>; user
     .maybeSingle();
   if (error) throw publicError(error, "readOwnSource");
   return data;
+}
+
+/**
+ * Claims one student-triggered sync (CRU-66), and stores a new feed link if the
+ * claim wins. Postgres holds the limit, so concurrent requests can't all pass.
+ * Returns null when the student has no calendar and sent no new link.
+ */
+async function claimSync(userId: string, newIcsUrlEncrypted?: string) {
+  const { data, error } = await supabaseAdmin.rpc("claim_calendar_sync", {
+    _user_id: userId,
+    ...(newIcsUrlEncrypted ? { _new_ics_url_encrypted: newIcsUrlEncrypted } : {}),
+  });
+  if (error) throw publicError(error, "claimSync");
+  return data[0] ?? null;
 }
 
 /**
@@ -54,25 +67,18 @@ export const saveCalendarSource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => icsUrlSchema.parse(input))
   .handler(async ({ data, context }): Promise<SyncResult> => {
+    // Checked before the claim, so a mistyped link can be retried straight away.
     if (!isAllowedFeedUrl(data.icsUrl)) return { status: "invalid_url" };
-
-    const existing = await readOwnSource(context);
-    const wait = cooldownSecondsLeft(existing?.last_synced_at ?? null);
-    if (wait > 0) return { status: "cooldown", retryInSeconds: wait };
 
     // Students have no direct write grant on calendar_sources (CRU-23), so
     // this is the only write path. user_id comes from the verified session.
-    const { data: saved, error } = await supabaseAdmin
-      .from("calendar_sources")
-      .upsert(
-        { user_id: context.userId, ics_url_encrypted: encryptIcsUrl(data.icsUrl) },
-        { onConflict: "user_id" },
-      )
-      .select("id")
-      .single();
-    if (error) throw publicError(error, "saveCalendarSource");
+    const claim = await claimSync(context.userId, encryptIcsUrl(data.icsUrl));
+    if (!claim) throw new Error(GENERIC_ERROR_MESSAGE);
+    if (claim.retry_in_seconds > 0) {
+      return { status: "cooldown", retryInSeconds: claim.retry_in_seconds };
+    }
 
-    return runCalendarSync(saved.id);
+    return runCalendarSync(claim.source_id);
   });
 
 /**
@@ -82,11 +88,12 @@ export const saveCalendarSource = createServerFn({ method: "POST" })
 export const syncCalendarNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<SyncResult | { status: "no_source" }> => {
-    const existing = await readOwnSource(context);
-    if (!existing) return { status: "no_source" };
-    const wait = cooldownSecondsLeft(existing.last_synced_at);
-    if (wait > 0) return { status: "cooldown", retryInSeconds: wait };
-    return runCalendarSync(existing.id);
+    const claim = await claimSync(context.userId);
+    if (!claim) return { status: "no_source" };
+    if (claim.retry_in_seconds > 0) {
+      return { status: "cooldown", retryInSeconds: claim.retry_in_seconds };
+    }
+    return runCalendarSync(claim.source_id);
   });
 
 export const getMyEvents = createServerFn({ method: "GET" })
