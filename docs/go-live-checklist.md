@@ -37,6 +37,8 @@ Production must be in the state students will see.
 
 - [ ] Vercel Production has `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ICS_URL_ENCRYPTION_KEY` and `CRON_SECRET`, and `ICS_ALLOWED_HOSTS` is either unset or `mystudies.iie.edu.za`.
 - [ ] Supabase → Authentication → URL Configuration: the Site URL is `https://crunch-taupe.vercel.app/`, and the redirect list holds only `https://crunch-taupe.vercel.app/**`.
+- [ ] Supabase → Authentication → Emails: **Confirm signup** links to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`, and **Reset password** links to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`.
+- [ ] Supabase → Authentication → Sign In / Providers (Email): minimum password length is **10** (matching `src/lib/password.ts`), **Secure password change** is on, and leaked-password protection is on if the plan offers it.
 - [ ] Supabase → Authentication → Auth Hooks: **Before User Created** is enabled and points at `public.hook_require_university_email`.
 - [ ] Supabase → Authentication → Sign In / Providers: **Allow new users to sign up** is on.
 - [ ] Every migration in `supabase/migrations/` is recorded in production:
@@ -58,7 +60,8 @@ Production must be in the state students will see.
 **A full run-through as a new student** (use a throwaway `@myemeris.edu.za` account, then delete it)
 
 - [ ] Signing up with a non-university address is refused.
-- [ ] The confirmation email arrives within a minute, and its link signs you in.
+- [ ] The confirmation email arrives within a minute. Its link confirms the address and sends you to sign in.
+- [ ] **Forgot your password?** sends a link that lets you choose a new password. The old password then stops working.
 - [ ] Onboarding accepts a real Brightspace link, and the first sync shows courses and deadlines.
 - [ ] Dashboard, week detail, log hours and settings all work. **Sync now** works, and pressing it again straight away shows the cooldown message.
 - [ ] **Download my data** produces a file; **Delete account** removes the account (check it's gone in Authentication → Users).

@@ -46,7 +46,16 @@ async function check(page: Page, path: string) {
   expect.soft(overflow.scroll ? overflow.wide : [], `sideways scroll on ${page.url()}`).toEqual([]);
 }
 
-for (const path of ["/", "/about", "/privacy", "/terms", "/contact", "/auth"]) {
+for (const path of [
+  "/",
+  "/about",
+  "/privacy",
+  "/terms",
+  "/contact",
+  "/auth",
+  "/auth/reset",
+  "/auth/confirm?token_hash=x&type=recovery",
+]) {
   test(`public ${path}`, async ({ page }) => {
     await check(page, path);
   });
