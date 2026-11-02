@@ -44,7 +44,7 @@ type SyncedCourse = { id: string; code: string | null; name: string };
 function Onboarding() {
   const { source } = Route.useLoaderData();
   const [state, setState] = useState<State>(source ? "url" : "welcome");
-  const [url, setUrl] = useState(source?.icsUrl ?? "");
+  const [url, setUrl] = useState("");
   const [courses, setCourses] = useState<SyncedCourse[]>([]);
   const [eventCount, setEventCount] = useState(0);
   const [errorNote, setErrorNote] = useState<string | null>(null);

@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
 import { runCalendarSync, type SyncResult } from "@/lib/calendar-sync";
-import { decryptIcsUrl, encryptIcsUrl } from "@/lib/ics-encryption";
+import { encryptIcsUrl } from "@/lib/ics-encryption";
 import { isAllowedFeedUrl } from "@/lib/ics-url";
 import { publicError } from "@/lib/server-errors";
 import { cooldownSecondsLeft } from "@/lib/sync-cooldown";
@@ -32,22 +32,16 @@ async function readOwnSource(context: { supabase: SupabaseClient<Database>; user
   return data;
 }
 
+/**
+ * Whether a calendar is connected, and when it last synced (CRU-65). Never the
+ * link itself: it's a live credential to the student's Brightspace calendar,
+ * so once saved it stays on the server. A student replaces it by saving a new one.
+ */
 export const getCalendarSource = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("calendar_sources")
-      .select("id, ics_url_encrypted, last_synced_at")
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (error) throw publicError(error, "getCalendarSource");
-    return data
-      ? {
-          id: data.id,
-          icsUrl: decryptIcsUrl(data.ics_url_encrypted),
-          lastSyncedAt: data.last_synced_at,
-        }
-      : null;
+    const source = await readOwnSource(context);
+    return source ? { id: source.id, lastSyncedAt: source.last_synced_at } : null;
   });
 
 /**
@@ -200,7 +194,7 @@ export const exportMyData = createServerFn({ method: "GET" })
         ? {
             connected: true,
             lastSyncedAt: source.data.last_synced_at,
-            note: "Your Brightspace link is stored encrypted and is not included in this file. You can see it in Settings.",
+            note: "Your Brightspace link is stored encrypted and is not included in this file. You can replace it in Settings, or find it in Brightspace under Calendar → Subscribe.",
           }
         : null,
       courses: courses.data,
