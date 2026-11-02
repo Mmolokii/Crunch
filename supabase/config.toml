@@ -6,6 +6,7 @@ project_id = "xnlzbtyitbsgxzvugthy"
 [auth]
 site_url = "http://localhost:8080"
 additional_redirect_urls = ["http://localhost:8080/**"]
+minimum_password_length = 10
 
 [auth.email]
 # Production confirms by email. Locally there's no mail server running, so
