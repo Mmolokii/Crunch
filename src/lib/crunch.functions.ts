@@ -1,13 +1,14 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { createSupabaseFetch, requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
 import { runCalendarSync, type SyncResult } from "@/lib/calendar-sync";
 import { encryptIcsUrl } from "@/lib/ics-encryption";
 import { isAllowedFeedUrl } from "@/lib/ics-url";
+import { passwordConfirmedRecently } from "@/lib/password";
 import { GENERIC_ERROR_MESSAGE, publicError } from "@/lib/server-errors";
 import type { AppEvent } from "@/lib/workload";
 
@@ -215,47 +216,21 @@ export const exportMyData = createServerFn({ method: "GET" })
   });
 
 /**
- * Checks a password on a client of its own, so the caller's session isn't
- * touched. Anything but a plain wrong password (a rate limit, an outage) throws
- * rather than reading as "wrong".
- */
-async function passwordIsCorrect(email: string, password: string): Promise<boolean> {
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  const client = createClient<Database>(process.env["SUPABASE_URL"]!, key, {
-    global: { fetch: createSupabaseFetch(key) },
-    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-  });
-  const { error } = await client.auth.signInWithPassword({ email, password });
-  if (error?.code === "invalid_credentials") return false;
-  if (error) throw publicError({ message: error.message, code: error.code ?? null }, "password");
-  return true;
-}
-
-/**
  * "Delete my account" (CRU-32). Deleting the auth user cascades through
  * public.users to every table holding the student's data. Needs the service
  * role: a student can't delete their own auth user through the API.
  *
- * Asks for the password, on the server, so a borrowed signed-in browser can't
- * delete the account (CRU-69).
+ * Needs a password sign-in in the last few minutes, read from the verified
+ * token, so a borrowed signed-in browser can't delete the account. The password
+ * itself goes from the browser to Supabase and never reaches this server
+ * (CRU-69).
  */
 export const deleteMyAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) =>
-    z.object({ confirm: z.literal("DELETE"), password: z.string().min(1).max(200) }).parse(input),
-  )
-  .handler(async ({ context, data }) => {
-    const { data: user, error: userError } = await supabaseAdmin.auth.admin.getUserById(
-      context.userId,
-    );
-    if (userError || !user.user.email) {
-      throw publicError(
-        { message: userError?.message ?? "no email", code: userError?.code ?? null },
-        "deleteMyAccount",
-      );
-    }
-    if (!(await passwordIsCorrect(user.user.email, data.password))) {
-      return { ok: false as const, reason: "wrong_password" as const };
+  .validator((input: unknown) => z.object({ confirm: z.literal("DELETE") }).parse(input))
+  .handler(async ({ context }) => {
+    if (!passwordConfirmedRecently(context.claims.amr)) {
+      return { ok: false as const };
     }
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(context.userId);

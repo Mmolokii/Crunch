@@ -137,12 +137,23 @@ test("deleting an account needs the password; a wrong one deletes nothing", asyn
   await expect(page).not.toHaveURL(/\/auth$/);
   await page.goto("/settings");
 
+  // The Overview tells IT that passwords never reach Crunch's own server.
+  const secret = "not-the-password";
+  const leaked: string[] = [];
+  page.on("request", (request) => {
+    const body = request.postData() ?? "";
+    const toCrunch = new URL(request.url()).hostname === "localhost";
+    if (toCrunch && (body.includes(secret) || body.includes(OLD_PASSWORD))) {
+      leaked.push(request.url());
+    }
+  });
+
   await page.getByRole("button", { name: "Delete account" }).click();
   const confirm = page.getByRole("button", { name: "Delete permanently" });
   await page.getByLabel("Type DELETE to confirm").fill("DELETE");
   await expect(confirm).toBeDisabled();
 
-  await page.getByLabel("Your password").fill("not-the-password");
+  await page.getByLabel("Your password").fill(secret);
   await confirm.click();
   await expect(page.getByRole("alert").filter({ hasText: "isn't right" })).toBeVisible();
   const { data: stillThere } = await admin.auth.admin.listUsers();
@@ -151,6 +162,7 @@ test("deleting an account needs the password; a wrong one deletes nothing", asyn
   await page.getByLabel("Your password").fill(OLD_PASSWORD);
   await confirm.click();
   await expect(page).toHaveURL(/\/$/);
+  expect(leaked).toEqual([]);
   const { data: after } = await admin.auth.admin.listUsers();
   expect(after.users.some((u) => u.email === email)).toBe(false);
 });

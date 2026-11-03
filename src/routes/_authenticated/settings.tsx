@@ -170,12 +170,22 @@ function SettingsPage() {
     setDeleting(true);
     setDeleteNotice(null);
     try {
-      const result = await deleteAccount({ data: { confirm: "DELETE", password: deletePassword } });
-      if (!result.ok) {
-        setDeleteNotice("That password isn't right. Nothing has been deleted.");
+      // Goes to Supabase, not our server, which then checks the fresh sign-in (CRU-69).
+      const { error: wrong } = await supabase.auth.signInWithPassword({
+        email: profile?.email ?? "",
+        password: deletePassword,
+      });
+      if (wrong) {
+        setDeleteNotice(
+          wrong.code === "invalid_credentials"
+            ? "That password isn't right. Nothing has been deleted."
+            : "We couldn't check your password. Nothing has been deleted.",
+        );
         setDeleting(false);
         return;
       }
+      const result = await deleteAccount({ data: { confirm: "DELETE" } });
+      if (!result.ok) throw new Error("Password not confirmed");
       await supabase.auth.signOut();
       toast.success("Your account and all its data have been deleted.");
       await router.navigate({ to: "/" });
