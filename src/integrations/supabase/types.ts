@@ -155,6 +155,46 @@ export type Database = {
         };
         Relationships: [];
       };
+      lecturer_audit_log: {
+        Row: {
+          action: string;
+          at: string;
+          copies: number;
+          course_code: string;
+          event_uid: string;
+          id: string;
+          lecturer_id: string;
+          new_values: Json | null;
+          old_values: Json | null;
+          school: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          action: string;
+          at?: string;
+          copies: number;
+          course_code: string;
+          event_uid: string;
+          id?: string;
+          lecturer_id: string;
+          new_values?: Json | null;
+          old_values?: Json | null;
+          school?: string | null;
+        };
+        Update: {
+          action?: string;
+          at?: string;
+          copies?: number;
+          course_code?: string;
+          event_uid?: string;
+          id?: string;
+          lecturer_id?: string;
+          new_values?: Json | null;
+          old_values?: Json | null;
+          school?: string | null;
+        };
+        Relationships: [];
+      };
       notification_preferences: {
         Row: {
           conflict: boolean;
