@@ -8,6 +8,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { runCalendarSync, type SyncResult } from "@/lib/calendar-sync";
 import { encryptIcsUrl } from "@/lib/ics-encryption";
 import { isAllowedFeedUrl } from "@/lib/ics-url";
+import { passwordConfirmedRecently } from "@/lib/password";
 import { GENERIC_ERROR_MESSAGE, publicError } from "@/lib/server-errors";
 import type { AppEvent } from "@/lib/workload";
 
@@ -218,15 +219,24 @@ export const exportMyData = createServerFn({ method: "GET" })
  * "Delete my account" (CRU-32). Deleting the auth user cascades through
  * public.users to every table holding the student's data. Needs the service
  * role: a student can't delete their own auth user through the API.
+ *
+ * Needs a password sign-in in the last few minutes, read from the verified
+ * token, so a borrowed signed-in browser can't delete the account. The password
+ * itself goes from the browser to Supabase and never reaches this server
+ * (CRU-69).
  */
 export const deleteMyAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ confirm: z.literal("DELETE") }).parse(input))
   .handler(async ({ context }) => {
+    if (!passwordConfirmedRecently(context.claims.amr)) {
+      return { ok: false as const };
+    }
+
     const { error } = await supabaseAdmin.auth.admin.deleteUser(context.userId);
     if (error)
       throw publicError({ message: error.message, code: error.code ?? null }, "deleteMyAccount");
-    return { ok: true };
+    return { ok: true as const };
   });
 
 export const getMyProfile = createServerFn({ method: "GET" })
