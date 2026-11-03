@@ -71,6 +71,7 @@ Production must be in the state students will see.
 
 - [ ] Both developers are free for the first two hours after launch and reachable for the first week.
 - [ ] Students have one place to report problems (named in the invite), and someone is watching it.
+- [ ] The About page's "being prepared for a pilot" line is updated for launch day.
 - [ ] HIVE knows the launch date.
 
 ## Gate 3: launch day
