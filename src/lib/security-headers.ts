@@ -35,8 +35,8 @@ export function contentSecurityPolicy(nonce: string): string {
     process.env["NODE_ENV"] === "development"
       ? "script-src 'self' 'unsafe-inline'"
       : `script-src 'self' 'nonce-${nonce}'`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' data: https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
     "img-src 'self' data: blob:",
     ["connect-src 'self'", supabase].filter(Boolean).join(" "),
     "object-src 'none'",

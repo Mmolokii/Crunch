@@ -31,6 +31,23 @@ test("landing page renders with a nonce-based CSP", async ({ page }) => {
   await expect(page.getByRole("link", { name: /sign in|get started/i }).first()).toBeVisible();
 });
 
+test("fonts come from Crunch, not a third party", async ({ page }) => {
+  const external: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).hostname !== "localhost") external.push(request.url());
+  });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  expect(external).toEqual([]);
+  expect(await page.evaluate(() => document.fonts.check('600 16px "Sora Variable"'))).toBe(true);
+  expect(await page.evaluate(() => document.fonts.check('400 16px "Manrope Variable"'))).toBe(true);
+  const loaded = await page.evaluate(() =>
+    [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family),
+  );
+  expect(loaded.join()).toMatch(/Manrope Variable/);
+  expect(loaded.join()).toMatch(/Sora Variable/);
+});
+
 test("sign-up refuses a non-university email", async ({ page }) => {
   await page.goto("/auth");
   await page.getByRole("tab", { name: "Create account" }).click();
