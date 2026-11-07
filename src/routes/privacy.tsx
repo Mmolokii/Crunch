@@ -102,7 +102,8 @@ function PrivacyPage() {
           Settings → Your data → Delete account removes your account, your calendar link, your
           courses, your events, your logged hours and your week scores straight away. Deletion
           cascades, so nothing of yours is left behind in aggregates that could be traced back to
-          you. You can also ask us to do it for you.
+          you. You can also ask us to do it for you. Encrypted database backups taken before you
+          deleted your account still hold your data until they expire, about 30 days later.
         </p>
       </Section>
 

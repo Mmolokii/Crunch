@@ -88,8 +88,8 @@ function AboutPage() {
 
       <Section title="Sponsorship">
         <p>
-          Crunch is sponsored by HIVE, our university&apos;s student innovation programme. It is a
-          live pilot running with real students and real coursework, not a class project.
+          Crunch is sponsored by HIVE, our university&apos;s student innovation programme. It is
+          being prepared for a pilot with real students and real coursework, not a class project.
         </p>
       </Section>
     </LegalPage>
