@@ -72,6 +72,19 @@ Supabase → Authentication → Users → the user → **Delete user**. Their ro
 
 `bun --env-file=.env scripts/lecturer.ts remove name@myemeris.edu.za --yes`. It unlinks their courses, demotes them to student and removes them from the allow-list, so the lecturer functions return nothing from their next request. To block the account completely, also delete the user as above.
 
+### See what a lecturer changed
+
+Every add, edit and delete of a due date writes a row to `lecturer_audit_log`. In the Supabase SQL editor:
+
+```sql
+-- The latest changes, newest first. Join to users for the lecturer's email.
+select l.at, u.email, l.action, l.course_code, l.old_values, l.new_values, l.copies
+from lecturer_audit_log l left join users u on u.id = l.lecturer_id
+order by l.at desc limit 50;
+```
+
+An empty `email` means the lecturer's account has since been deleted. `scripts/lecturer.ts` changes (adding, removing and linking lecturers) aren't in this log.
+
 ## Checking the nightly sync
 
 Every nightly run writes a row to `sync_runs` (kept for 90 days). In the Supabase SQL editor:
