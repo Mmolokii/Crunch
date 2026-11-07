@@ -19,9 +19,9 @@
  * Locally and in CI (CRU-54): `bun run test:security` runs it with --local
  * against the stack from `bun run db:start` + `bun run db:env`. --local signs
  * in as the seed students (supabase/seed.sql) and refuses any non-local URL,
- * so it can never touch a hosted project. It also runs checks 25–35 as the
- * seed lecturer, whose expectations depend on the seed's courses, and checks
- * 38–43 with the service role.
+ * so it can never touch a hosted project. It also runs checks 25–35 and 44–47
+ * as the seed lecturer, whose expectations depend on the seed's courses, and
+ * checks 38–43 and 47 with the service role.
  *
  * Checks 17–20 cover the CRU-23/24/25 fixes and only pass once those
  * migrations are applied (and, for 20, the auth hook is enabled).
@@ -574,6 +574,52 @@ async function lecturerChecks(aCourses: { id: string; code: string | null }[]) {
       : deleted.error
         ? `delete: ${describe(deleted)}`
         : `student saw ${created}, then ${left}`,
+  );
+
+  // 44–47. The audit log (CRU-72): only the server can read it, nobody can write it directly.
+  r = await a.from("lecturer_audit_log").select("id");
+  report(44, "CRU-72: student reads the audit log → refused", isDenied(r), describe(r));
+  r = await lec.from("lecturer_audit_log").select("id");
+  report(45, "CRU-72: lecturer reads the audit log → refused", isDenied(r), describe(r));
+  r = await lec.from("lecturer_audit_log").delete().neq("action", "");
+  report(46, "CRU-72: lecturer deletes from the audit log → refused", isDenied(r), describe(r));
+
+  const added = await lec.rpc("lecturer_upsert_due_date", {
+    _course_id: prog.id,
+    _title: "CRU-72 before",
+    _due_at: dueAt,
+  });
+  const eventId = added.data as string;
+  await lec.rpc("lecturer_upsert_due_date", {
+    _course_id: prog.id,
+    _title: "CRU-72 after",
+    _due_at: dueAt,
+    _event_id: eventId,
+  });
+  await lec.rpc("lecturer_delete_due_date", { _event_id: eventId });
+  const admin = createClient(url!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: me } = await lec.auth.getUser();
+  const { data: log } = await admin
+    .from("lecturer_audit_log")
+    .select("lecturer_id, action, course_code, old_values, new_values, copies")
+    .order("at", { ascending: false })
+    .limit(3);
+  const [gone, edited, made] = log ?? [];
+  report(
+    47,
+    "CRU-72: adding, editing and deleting a due date each leave a row saying who and what",
+    (log ?? []).every((row) => row.lecturer_id === me.user?.id && row.course_code === "PROG6221") &&
+      made?.action === "due_date_added" &&
+      (made.new_values as { title?: string })?.title === "CRU-72 before" &&
+      edited?.action === "due_date_edited" &&
+      (edited.old_values as { title?: string })?.title === "CRU-72 before" &&
+      (edited.new_values as { title?: string })?.title === "CRU-72 after" &&
+      gone?.action === "due_date_deleted" &&
+      (gone.old_values as { title?: string })?.title === "CRU-72 after" &&
+      gone.copies === 10,
+    JSON.stringify(log?.map((row) => [row.action, row.copies])),
   );
 }
 

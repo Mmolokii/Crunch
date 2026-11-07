@@ -49,7 +49,7 @@ erDiagram
   }
 ```
 
-Not shown: `lecturer_allowlist` and `sync_runs` have no foreign keys.
+Not shown: `lecturer_allowlist`, `lecturer_audit_log` and `sync_runs` have no foreign keys.
 
 **Courses are per student.** Each student has their own `courses` row for every course in their feed, so two students in the same class have two rows with the same `code`. Lecturer functions group rows by `code` (and `users.school`) to see a cohort.
 
@@ -57,22 +57,24 @@ Not shown: `lecturer_allowlist` and `sync_runs` have no foreign keys.
 
 ## Table by table
 
-| Table                      | Holds                                                                                                       | Students can                      | Written by                                       |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------ |
-| `users`                    | One row per account: email, role, school                                                                    | Read their own row                | `complete_signup` (once, at first sign-in)       |
-| `calendar_sources`         | The student's encrypted Brightspace feed URL and last sync times                                            | Read their own row                | Server functions, via the service role           |
-| `courses`                  | One row per student per course in their feed                                                                | Read their own                    | The sync (service role)                          |
-| `events`                   | Due dates: synced from the feed, or added by a lecturer (`source='manual'`)                                 | Read events in their own courses  | The sync; `log_actual_hours`; lecturer functions |
-| `notification_preferences` | Three on/off toggles per student (nothing sends yet, CRU-18)                                                | Read, create and update their own | The student                                      |
-| `lecturer_allowlist`       | Lower-case emails that get the lecturer role at sign-up                                                     | Nothing (no grants)               | Maintainers, by hand in SQL                      |
-| `sync_runs`                | One row per nightly run: totals, failures, duration (90 days)                                               | Nothing (no grants)               | The nightly run (service role)                   |
-| `week_scores`              | Legacy cached scores. Not written by the current app; scores are computed on read. Included in data export. | Read their own                    | Nothing currently                                |
+| Table                      | Holds                                                                                                       | Students can                      | Written by                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------ |
+| `users`                    | One row per account: email, role, school                                                                    | Read their own row                | `complete_signup` (once, at first sign-in)             |
+| `calendar_sources`         | The student's encrypted Brightspace feed URL and last sync times                                            | Read their own row                | Server functions, via the service role                 |
+| `courses`                  | One row per student per course in their feed                                                                | Read their own                    | The sync (service role)                                |
+| `events`                   | Due dates: synced from the feed, or added by a lecturer (`source='manual'`)                                 | Read events in their own courses  | The sync; `log_actual_hours`; lecturer functions       |
+| `notification_preferences` | Three on/off toggles per student (nothing sends yet, CRU-18)                                                | Read, create and update their own | The student                                            |
+| `lecturer_allowlist`       | Lower-case emails that get the lecturer role at sign-up                                                     | Nothing (no grants)               | Maintainers, by hand in SQL                            |
+| `lecturer_audit_log`       | One row per lecturer add, edit or delete of a due date: who, what, old and new values, copies touched       | Nothing (no grants)               | `lecturer_upsert_due_date`, `lecturer_delete_due_date` |
+| `sync_runs`                | One row per nightly run: totals, failures, duration (90 days)                                               | Nothing (no grants)               | The nightly run (service role)                         |
+| `week_scores`              | Legacy cached scores. Not written by the current app; scores are computed on read. Included in data export. | Read their own                    | Nothing currently                                      |
 
 Every table has Row Level Security enabled, and every policy compares `auth.uid()` with the row's owner. Some notes:
 
 - `calendar_sources` still has insert and update policies from the baseline, but the `INSERT` and `UPDATE` privileges were revoked from `authenticated` (migration `20261030093000`), so students can't write the table directly. Saves go through `saveCalendarSource`, which validates the URL first.
 - `events` has no write policy at all. Students change an event only through `log_actual_hours`.
 - `lecturer_allowlist` and `sync_runs` have RLS enabled, no policies and no grants for `anon` or `authenticated`: only the service role can touch them.
+- `lecturer_audit_log` is the same, and the service role can only read it. It names no students, and its `lecturer_id` has no foreign key, so it outlives the account.
 
 ## Database functions
 
