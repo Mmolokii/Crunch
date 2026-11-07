@@ -139,6 +139,8 @@ function SettingsPage() {
   const deleteAccount = useServerFn(deleteMyAccount);
   const [exporting, setExporting] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -166,8 +168,24 @@ function SettingsPage() {
 
   async function onDelete() {
     setDeleting(true);
+    setDeleteNotice(null);
     try {
-      await deleteAccount({ data: { confirm: "DELETE" } });
+      // Goes to Supabase, not our server, which then checks the fresh sign-in (CRU-69).
+      const { error: wrong } = await supabase.auth.signInWithPassword({
+        email: profile?.email ?? "",
+        password: deletePassword,
+      });
+      if (wrong) {
+        setDeleteNotice(
+          wrong.code === "invalid_credentials"
+            ? "That password isn't right. Nothing has been deleted."
+            : "We couldn't check your password. Nothing has been deleted.",
+        );
+        setDeleting(false);
+        return;
+      }
+      const result = await deleteAccount({ data: { confirm: "DELETE" } });
+      if (!result.ok) throw new Error("Password not confirmed");
       await supabase.auth.signOut();
       toast.success("Your account and all its data have been deleted.");
       await router.navigate({ to: "/" });
@@ -442,7 +460,14 @@ function SettingsPage() {
               <Download className="h-4 w-4" />
               {exporting ? "Preparing…" : "Download my data"}
             </Button>
-            <AlertDialog onOpenChange={(open) => !open && setConfirmText("")}>
+            <AlertDialog
+              onOpenChange={(open) => {
+                if (open) return;
+                setConfirmText("");
+                setDeletePassword("");
+                setDeleteNotice(null);
+              }}
+            >
               <AlertDialogTrigger asChild>
                 <Button
                   variant="outline"
@@ -457,20 +482,32 @@ function SettingsPage() {
                   <AlertDialogTitle>Delete your Crunch account?</AlertDialogTitle>
                   <AlertDialogDescription>
                     This permanently deletes your account and all of its data. Download your data
-                    first if you want a copy. Type DELETE to confirm.
+                    first if you want a copy. Enter your password and type DELETE to confirm.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
+                <Input
+                  aria-label="Your password"
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  autoComplete="current-password"
+                />
                 <Input
                   aria-label="Type DELETE to confirm"
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   autoComplete="off"
                 />
+                {deleteNotice ? (
+                  <p role="alert" className="text-sm text-destructive">
+                    {deleteNotice}
+                  </p>
+                ) : null}
                 <AlertDialogFooter>
                   <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    disabled={confirmText !== "DELETE" || deleting}
+                    disabled={confirmText !== "DELETE" || !deletePassword || deleting}
                     onClick={(e) => {
                       e.preventDefault();
                       void onDelete();
